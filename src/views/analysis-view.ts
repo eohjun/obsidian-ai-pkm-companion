@@ -45,7 +45,12 @@ export class AnalysisView extends ItemView {
   }
 
   async onClose(): Promise<void> {
-    // Cleanup
+    this.hideLoadingOverlay();
+    this.currentResult = null;
+    this.currentJob = null;
+    this.suggestedTopics = null;
+    this.loadingOverlayEl = null;
+    this.loadingTextEl = null;
   }
 
   public showResult(result: AnalysisResult): void {
