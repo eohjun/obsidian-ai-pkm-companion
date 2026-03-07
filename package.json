@@ -1,25 +1,25 @@
 {
-  "name": "obsidian-note-topic-finder",
-  "version": "0.4.21",
-  "description": "Analyze content and discover permanent note topics from URLs, text, and vault notes",
-  "main": "main.js",
-  "scripts": {
-    "dev": "node esbuild.config.mjs",
-    "build": "node esbuild.config.mjs production",
-    "typecheck": "tsc --noEmit"
-  },
-  "keywords": [
-    "obsidian",
-    "ai",
-    "pkm",
-    "llm",
-    "content-analysis"
-  ],
-  "author": "eohjun",
-  "license": "MIT",
-  "devDependencies": {
-    "obsidian": "latest",
-    "esbuild": "^0.27.3",
-    "typescript": "^5.3.0"
-  }
+	"name": "obsidian-note-topic-finder",
+	"version": "0.4.22",
+	"description": "Analyze content and discover permanent note topics from URLs, text, and vault notes",
+	"main": "main.js",
+	"scripts": {
+		"dev": "node esbuild.config.mjs",
+		"build": "node esbuild.config.mjs production",
+		"typecheck": "tsc --noEmit"
+	},
+	"keywords": [
+		"obsidian",
+		"ai",
+		"pkm",
+		"llm",
+		"content-analysis"
+	],
+	"author": "eohjun",
+	"license": "MIT",
+	"devDependencies": {
+		"obsidian": "latest",
+		"esbuild": "^0.27.3",
+		"typescript": "^5.3.0"
+	}
 }
