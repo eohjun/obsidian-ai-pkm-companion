@@ -1,6 +1,7 @@
 /**
- * Grok Provider
- * xAI Grok API implementation (OpenAI-compatible)
+ * Grok Provider — 공유 빌더/파서 사용
+ *
+ * 추가: Reasoning 모델 지원 (grok-4-1-fast)
  */
 
 import { BaseProvider } from './base-provider';
@@ -10,38 +11,7 @@ import type {
   AIRequestOptions,
   AIProviderResponse,
 } from '../../domain/interfaces/llm-provider';
-
-interface GrokMessage {
-  role: 'system' | 'user' | 'assistant';
-  content: string;
-}
-
-interface GrokRequest {
-  model: string;
-  messages: GrokMessage[];
-  max_tokens?: number;
-  temperature?: number;
-}
-
-interface GrokResponse {
-  choices: {
-    message: {
-      role: string;
-      content: string;
-    };
-    finish_reason: string;
-  }[];
-  usage?: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
-  };
-  error?: {
-    message: string;
-    type: string;
-    code: string;
-  };
-}
+import { buildGrokBody, parseGrokResponse } from 'obsidian-llm-shared';
 
 export class GrokProvider extends BaseProvider {
   readonly id: AIProviderType = 'grok';
@@ -49,20 +19,18 @@ export class GrokProvider extends BaseProvider {
 
   async testApiKey(apiKey: string): Promise<boolean> {
     try {
-      const response = await this.makeRequest<GrokResponse>({
+      const body = buildGrokBody(
+        [{ role: 'user', content: 'Hello' }],
+        this.config.defaultModel,
+        { maxTokens: 10 }
+      );
+      const json = await this.makeRequest<Record<string, unknown>>({
         url: `${this.config.endpoint}/chat/completions`,
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: this.config.defaultModel,
-          messages: [{ role: 'user', content: 'Hello' }],
-          max_tokens: 10,
-        }),
+        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
       });
-      return !response.error && response.choices && response.choices.length > 0;
+      return parseGrokResponse(json).success;
     } catch {
       return false;
     }
@@ -73,60 +41,32 @@ export class GrokProvider extends BaseProvider {
     apiKey: string,
     options?: AIRequestOptions
   ): Promise<AIProviderResponse> {
-    const grokMessages = this.convertMessages(messages);
-
-    const requestBody: GrokRequest = {
-      model: options?.model || this.config.defaultModel,
-      messages: grokMessages,
-      max_tokens: options?.maxTokens ?? 4096,
-      temperature: options?.temperature ?? 0.7,
-    };
-
     try {
-      const response = await this.makeRequest<GrokResponse>({
-        url: `${this.config.endpoint}/chat/completions`,
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
+      const model = options?.model || this.config.defaultModel;
+      const body = buildGrokBody(messages, model, {
+        maxTokens: options?.maxTokens,
+        temperature: options?.temperature,
       });
 
-      if (response.error) {
-        return {
-          success: false,
-          content: '',
-          error: response.error.message,
-          errorCode: response.error.code || response.error.type,
-        };
-      }
+      const json = await this.makeRequest<Record<string, unknown>>({
+        url: `${this.config.endpoint}/chat/completions`,
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
 
-      if (!response.choices || response.choices.length === 0) {
-        return {
-          success: false,
-          content: '',
-          error: 'No response generated',
-          errorCode: 'EMPTY_RESPONSE',
-        };
+      const result = parseGrokResponse(json);
+      if (!result.success) {
+        return { success: false, content: '', error: result.error, errorCode: 'API_ERROR' };
       }
-
-      const generatedText = response.choices[0].message.content;
 
       return {
         success: true,
-        content: generatedText,
-        tokensUsed: response.usage?.total_tokens,
+        content: result.text,
+        tokensUsed: result.usage.totalTokens,
       };
     } catch (error) {
       return this.handleError(error);
     }
-  }
-
-  private convertMessages(messages: AIMessage[]): GrokMessage[] {
-    return messages.map((msg) => ({
-      role: msg.role,
-      content: msg.content,
-    }));
   }
 }
