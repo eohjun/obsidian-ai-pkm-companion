@@ -18,8 +18,11 @@
 	"author": "eohjun",
 	"license": "MIT",
 	"devDependencies": {
-		"obsidian": "latest",
 		"esbuild": "^0.27.3",
+		"obsidian": "latest",
 		"typescript": "^5.3.0"
+	},
+	"dependencies": {
+		"obsidian-llm-shared": "github:eohjun/obsidian-llm-shared"
 	}
 }
