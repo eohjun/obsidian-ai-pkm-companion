@@ -466,11 +466,219 @@ var MODEL_CONFIGS = {
 function getModelConfig(modelId) {
   return MODEL_CONFIGS[modelId];
 }
+function isReasoningModel(modelId) {
+  const config = getModelConfig(modelId);
+  if (config)
+    return config.isReasoning;
+  return modelId.startsWith("gpt-5") || modelId.startsWith("o1") || modelId.startsWith("o3");
+}
+function getEffectiveMaxTokens(modelId, requestedTokens) {
+  const config = getModelConfig(modelId);
+  if (!config) {
+    if (isReasoningModel(modelId)) {
+      return Math.max(requestedTokens, 8192);
+    }
+    return requestedTokens;
+  }
+  if (config.thinkingMode) {
+    return Math.max(requestedTokens, config.defaultCompletionTokens);
+  }
+  if (!config.isReasoning)
+    return requestedTokens;
+  return Math.max(requestedTokens, config.defaultCompletionTokens);
+}
+function getThinkingConfig(modelId) {
+  var _a;
+  const config = getModelConfig(modelId);
+  if (!(config == null ? void 0 : config.thinkingMode))
+    return void 0;
+  if (config.thinkingMode === "adaptive") {
+    return { type: "adaptive" };
+  }
+  return { type: "enabled", budget_tokens: (_a = config.thinkingBudget) != null ? _a : 1024 };
+}
 function calculateCost(modelId, inputTokens, outputTokens) {
   const config = getModelConfig(modelId);
   if (!config)
     return 0;
   return inputTokens / 1e6 * config.inputCostPer1M + outputTokens / 1e6 * config.outputCostPer1M;
+}
+
+// node_modules/obsidian-llm-shared/dist/providers/openai.js
+function buildOpenAIBody(messages, model, opts = {}) {
+  var _a;
+  const reasoning = isReasoningModel(model);
+  const tokens = getEffectiveMaxTokens(model, (_a = opts.maxTokens) != null ? _a : 4096);
+  const body = {
+    model,
+    messages: messages.map((m) => ({ role: m.role, content: m.content }))
+  };
+  if (reasoning) {
+    body.max_completion_tokens = tokens;
+  } else {
+    body.max_tokens = tokens;
+    if (opts.temperature !== void 0) {
+      body.temperature = opts.temperature;
+    }
+  }
+  return body;
+}
+function parseOpenAIResponse(json) {
+  var _a;
+  const fail = (error) => ({
+    success: false,
+    text: "",
+    model: "",
+    usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+    error
+  });
+  if (!json || typeof json !== "object") {
+    return fail("Invalid response: not an object");
+  }
+  const data = json;
+  const choices = data.choices;
+  const message = (_a = choices == null ? void 0 : choices[0]) == null ? void 0 : _a.message;
+  const text = typeof (message == null ? void 0 : message.content) === "string" ? message.content : "";
+  const model = typeof data.model === "string" ? data.model : "";
+  const usage = data.usage;
+  const inputTokens = typeof (usage == null ? void 0 : usage.prompt_tokens) === "number" ? usage.prompt_tokens : 0;
+  const outputTokens = typeof (usage == null ? void 0 : usage.completion_tokens) === "number" ? usage.completion_tokens : 0;
+  const totalTokens = typeof (usage == null ? void 0 : usage.total_tokens) === "number" ? usage.total_tokens : inputTokens + outputTokens;
+  return {
+    success: true,
+    text,
+    model,
+    usage: { inputTokens, outputTokens, totalTokens }
+  };
+}
+
+// node_modules/obsidian-llm-shared/dist/providers/anthropic.js
+function buildAnthropicBody(messages, model, opts = {}) {
+  var _a;
+  const tokens = getEffectiveMaxTokens(model, (_a = opts.maxTokens) != null ? _a : 4096);
+  const thinkingCfg = getThinkingConfig(model);
+  const systemMessages = messages.filter((m) => m.role === "system");
+  const nonSystemMessages = messages.filter((m) => m.role !== "system");
+  const body = {
+    model,
+    max_tokens: tokens,
+    messages: nonSystemMessages.map((m) => ({ role: m.role, content: m.content }))
+  };
+  if (systemMessages.length > 0) {
+    body.system = systemMessages.map((m) => m.content).join("\n\n");
+  }
+  if (thinkingCfg) {
+    body.thinking = thinkingCfg;
+  } else if (opts.temperature !== void 0) {
+    body.temperature = opts.temperature;
+  }
+  return body;
+}
+function parseAnthropicResponse(json) {
+  var _a;
+  const fail = (error) => ({
+    success: false,
+    text: "",
+    model: "",
+    usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+    error
+  });
+  if (!json || typeof json !== "object") {
+    return fail("Invalid response: not an object");
+  }
+  const data = json;
+  const content = data.content;
+  const text = (_a = content == null ? void 0 : content.filter((block) => block.type === "text").map((block) => typeof block.text === "string" ? block.text : "").join("")) != null ? _a : "";
+  const model = typeof data.model === "string" ? data.model : "";
+  const usage = data.usage;
+  const inputTokens = typeof (usage == null ? void 0 : usage.input_tokens) === "number" ? usage.input_tokens : 0;
+  const outputTokens = typeof (usage == null ? void 0 : usage.output_tokens) === "number" ? usage.output_tokens : 0;
+  return {
+    success: true,
+    text,
+    model,
+    usage: { inputTokens, outputTokens, totalTokens: inputTokens + outputTokens }
+  };
+}
+
+// node_modules/obsidian-llm-shared/dist/providers/gemini.js
+function buildGeminiBody(messages, model, opts = {}) {
+  var _a, _b;
+  const tokens = getEffectiveMaxTokens(model, (_a = opts.maxTokens) != null ? _a : 4096);
+  const systemMessages = messages.filter((m) => m.role === "system");
+  const nonSystemMessages = messages.filter((m) => m.role !== "system");
+  const contents = nonSystemMessages.map((m) => ({
+    role: m.role === "assistant" ? "model" : "user",
+    parts: [{ text: m.content }]
+  }));
+  const body = {
+    contents,
+    generationConfig: {
+      maxOutputTokens: tokens,
+      temperature: (_b = opts.temperature) != null ? _b : 0.3
+    }
+  };
+  if (systemMessages.length > 0) {
+    body.systemInstruction = {
+      parts: [{ text: systemMessages.map((m) => m.content).join("\n\n") }]
+    };
+  }
+  return body;
+}
+function parseGeminiResponse(json) {
+  var _a, _b;
+  const fail = (error) => ({
+    success: false,
+    text: "",
+    model: "",
+    usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+    error
+  });
+  if (!json || typeof json !== "object") {
+    return fail("Invalid response: not an object");
+  }
+  const data = json;
+  const candidates = data.candidates;
+  const content = (_a = candidates == null ? void 0 : candidates[0]) == null ? void 0 : _a.content;
+  const parts = content == null ? void 0 : content.parts;
+  const text = typeof ((_b = parts == null ? void 0 : parts[0]) == null ? void 0 : _b.text) === "string" ? parts[0].text : "";
+  const model = typeof data.modelVersion === "string" ? data.modelVersion : "";
+  const usageMeta = data.usageMetadata;
+  const inputTokens = typeof (usageMeta == null ? void 0 : usageMeta.promptTokenCount) === "number" ? usageMeta.promptTokenCount : 0;
+  const outputTokens = typeof (usageMeta == null ? void 0 : usageMeta.candidatesTokenCount) === "number" ? usageMeta.candidatesTokenCount : 0;
+  const totalTokens = typeof (usageMeta == null ? void 0 : usageMeta.totalTokenCount) === "number" ? usageMeta.totalTokenCount : inputTokens + outputTokens;
+  return {
+    success: true,
+    text,
+    model,
+    usage: { inputTokens, outputTokens, totalTokens }
+  };
+}
+function getGeminiGenerateUrl(model, apiKey, baseUrl = "https://generativelanguage.googleapis.com/v1beta") {
+  return `${baseUrl}/models/${model}:generateContent?key=${apiKey}`;
+}
+
+// node_modules/obsidian-llm-shared/dist/providers/grok.js
+function buildGrokBody(messages, model, opts = {}) {
+  var _a;
+  const reasoning = isReasoningModel(model);
+  const tokens = getEffectiveMaxTokens(model, (_a = opts.maxTokens) != null ? _a : 4096);
+  const body = {
+    model,
+    messages: messages.map((m) => ({ role: m.role, content: m.content }))
+  };
+  if (reasoning) {
+    body.max_completion_tokens = tokens;
+  } else {
+    body.max_tokens = tokens;
+    if (opts.temperature !== void 0) {
+      body.temperature = opts.temperature;
+    }
+  }
+  return body;
+}
+function parseGrokResponse(json) {
+  return parseOpenAIResponse(json);
 }
 
 // src/core/domain/constants/model-configs.ts
@@ -1339,84 +1547,58 @@ var ClaudeProvider = class extends BaseProvider {
     super(...arguments);
     this.id = "claude";
     this.name = "Anthropic Claude";
-    this.API_VERSION = "2023-06-01";
   }
   async testApiKey(apiKey) {
     try {
-      const response = await this.makeRequest({
+      const body = buildAnthropicBody(
+        [{ role: "user", content: "Hello" }],
+        this.config.defaultModel,
+        { maxTokens: 10 }
+      );
+      const json = await this.makeRequest({
         url: `${this.config.endpoint}/messages`,
         method: "POST",
         headers: {
           "x-api-key": apiKey,
-          "anthropic-version": this.API_VERSION,
+          "anthropic-version": "2023-06-01",
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          model: this.config.defaultModel,
-          messages: [{ role: "user", content: "Hello" }],
-          max_tokens: 10
-        })
+        body: JSON.stringify(body)
       });
-      return !response.error && !!response.content;
+      return parseAnthropicResponse(json).success;
     } catch (e) {
       return false;
     }
   }
   async generateText(messages, apiKey, options) {
-    var _a, _b;
-    const { claudeMessages, systemPrompt } = this.convertMessages(messages);
-    const requestBody = {
-      model: (options == null ? void 0 : options.model) || this.config.defaultModel,
-      messages: claudeMessages,
-      max_tokens: (_a = options == null ? void 0 : options.maxTokens) != null ? _a : 4096,
-      temperature: (_b = options == null ? void 0 : options.temperature) != null ? _b : 0.7
-    };
-    if (systemPrompt) {
-      requestBody.system = systemPrompt;
-    }
     try {
-      const response = await this.makeRequest({
+      const model = (options == null ? void 0 : options.model) || this.config.defaultModel;
+      const body = buildAnthropicBody(messages, model, {
+        maxTokens: options == null ? void 0 : options.maxTokens,
+        temperature: options == null ? void 0 : options.temperature
+      });
+      const json = await this.makeRequest({
         url: `${this.config.endpoint}/messages`,
         method: "POST",
         headers: {
           "x-api-key": apiKey,
-          "anthropic-version": this.API_VERSION,
+          "anthropic-version": "2023-06-01",
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(body)
       });
-      if (response.error) {
-        return {
-          success: false,
-          content: "",
-          error: response.error.message,
-          errorCode: response.error.type
-        };
+      const result = parseAnthropicResponse(json);
+      if (!result.success) {
+        return { success: false, content: "", error: result.error, errorCode: "API_ERROR" };
       }
-      const generatedText = response.content.filter((block) => block.type === "text").map((block) => block.text).join("");
       return {
         success: true,
-        content: generatedText,
-        tokensUsed: response.usage ? response.usage.input_tokens + response.usage.output_tokens : void 0
+        content: result.text,
+        tokensUsed: result.usage.totalTokens
       };
     } catch (error) {
       return this.handleError(error);
     }
-  }
-  convertMessages(messages) {
-    const claudeMessages = [];
-    let systemPrompt = null;
-    for (const msg of messages) {
-      if (msg.role === "system") {
-        systemPrompt = msg.content;
-      } else {
-        claudeMessages.push({
-          role: msg.role,
-          content: msg.content
-        });
-      }
-    }
-    return { claudeMessages, systemPrompt };
   }
 };
 
@@ -1429,87 +1611,47 @@ var OpenAIProvider = class extends BaseProvider {
   }
   async testApiKey(apiKey) {
     try {
-      const model = this.config.defaultModel;
-      const isReasoningModel2 = model.startsWith("gpt-5") || model.startsWith("o1") || model.startsWith("o3");
-      const requestBody = {
-        model,
-        messages: [{ role: "user", content: "Hello" }]
-      };
-      if (isReasoningModel2) {
-        requestBody.max_completion_tokens = 10;
-      } else {
-        requestBody.max_tokens = 10;
-      }
-      const response = await this.makeRequest({
+      const body = buildOpenAIBody(
+        [{ role: "user", content: "Hello" }],
+        this.config.defaultModel,
+        { maxTokens: 10 }
+      );
+      const json = await this.makeRequest({
         url: `${this.config.endpoint}/chat/completions`,
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(requestBody)
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body)
       });
-      return !response.error && response.choices && response.choices.length > 0;
+      return parseOpenAIResponse(json).success;
     } catch (e) {
       return false;
     }
   }
   async generateText(messages, apiKey, options) {
-    var _a, _b, _c, _d;
-    const openaiMessages = this.convertMessages(messages);
-    const model = (options == null ? void 0 : options.model) || this.config.defaultModel;
-    const isReasoningModel2 = model.startsWith("gpt-5") || model.startsWith("o1") || model.startsWith("o3");
-    const requestBody = {
-      model,
-      messages: openaiMessages,
-      temperature: (_a = options == null ? void 0 : options.temperature) != null ? _a : 0.7
-    };
-    if (isReasoningModel2) {
-      requestBody.max_completion_tokens = (_b = options == null ? void 0 : options.maxTokens) != null ? _b : 4096;
-    } else {
-      requestBody.max_tokens = (_c = options == null ? void 0 : options.maxTokens) != null ? _c : 4096;
-    }
     try {
-      const response = await this.makeRequest({
+      const model = (options == null ? void 0 : options.model) || this.config.defaultModel;
+      const body = buildOpenAIBody(messages, model, {
+        maxTokens: options == null ? void 0 : options.maxTokens,
+        temperature: options == null ? void 0 : options.temperature
+      });
+      const json = await this.makeRequest({
         url: `${this.config.endpoint}/chat/completions`,
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(requestBody)
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body)
       });
-      if (response.error) {
-        return {
-          success: false,
-          content: "",
-          error: response.error.message,
-          errorCode: response.error.code || response.error.type
-        };
+      const result = parseOpenAIResponse(json);
+      if (!result.success) {
+        return { success: false, content: "", error: result.error, errorCode: "API_ERROR" };
       }
-      if (!response.choices || response.choices.length === 0) {
-        return {
-          success: false,
-          content: "",
-          error: "No response generated",
-          errorCode: "EMPTY_RESPONSE"
-        };
-      }
-      const generatedText = response.choices[0].message.content;
       return {
         success: true,
-        content: generatedText,
-        tokensUsed: (_d = response.usage) == null ? void 0 : _d.total_tokens
+        content: result.text,
+        tokensUsed: result.usage.totalTokens
       };
     } catch (error) {
       return this.handleError(error);
     }
-  }
-  convertMessages(messages) {
-    return messages.map((msg) => ({
-      role: msg.role,
-      content: msg.content
-    }));
   }
 };
 
@@ -1522,97 +1664,49 @@ var GeminiProvider = class extends BaseProvider {
   }
   async testApiKey(apiKey) {
     try {
-      const model = this.config.defaultModel;
-      const url = `${this.config.endpoint}/models/${model}:generateContent?key=${apiKey}`;
-      const response = await this.makeRequest({
+      const body = buildGeminiBody(
+        [{ role: "user", content: "Hello" }],
+        this.config.defaultModel,
+        { maxTokens: 10 }
+      );
+      const url = getGeminiGenerateUrl(this.config.defaultModel, apiKey, this.config.endpoint);
+      const json = await this.makeRequest({
         url,
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: "user",
-              parts: [{ text: "Hello" }]
-            }
-          ],
-          generationConfig: {
-            maxOutputTokens: 10
-          }
-        })
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
       });
-      return !response.error && !!response.candidates && response.candidates.length > 0;
+      return parseGeminiResponse(json).success;
     } catch (e) {
       return false;
     }
   }
   async generateText(messages, apiKey, options) {
-    var _a, _b, _c;
-    const { contents, systemInstruction } = this.convertMessages(messages);
-    const model = (options == null ? void 0 : options.model) || this.config.defaultModel;
-    const url = `${this.config.endpoint}/models/${model}:generateContent?key=${apiKey}`;
-    const requestBody = {
-      contents,
-      generationConfig: {
-        temperature: (_a = options == null ? void 0 : options.temperature) != null ? _a : 0.7,
-        maxOutputTokens: (_b = options == null ? void 0 : options.maxTokens) != null ? _b : 4096
-      }
-    };
-    if (systemInstruction) {
-      requestBody.systemInstruction = systemInstruction;
-    }
     try {
-      const response = await this.makeRequest({
+      const model = (options == null ? void 0 : options.model) || this.config.defaultModel;
+      const body = buildGeminiBody(messages, model, {
+        maxTokens: options == null ? void 0 : options.maxTokens,
+        temperature: options == null ? void 0 : options.temperature
+      });
+      const url = getGeminiGenerateUrl(model, apiKey, this.config.endpoint);
+      const json = await this.makeRequest({
         url,
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(requestBody)
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
       });
-      if (response.error) {
-        return {
-          success: false,
-          content: "",
-          error: response.error.message,
-          errorCode: response.error.status || String(response.error.code)
-        };
+      const result = parseGeminiResponse(json);
+      if (!result.success) {
+        return { success: false, content: "", error: result.error, errorCode: "API_ERROR" };
       }
-      if (!response.candidates || response.candidates.length === 0) {
-        return {
-          success: false,
-          content: "",
-          error: "No response generated",
-          errorCode: "EMPTY_RESPONSE"
-        };
-      }
-      const generatedText = response.candidates[0].content.parts.map((part) => part.text).join("");
       return {
         success: true,
-        content: generatedText,
-        tokensUsed: (_c = response.usageMetadata) == null ? void 0 : _c.totalTokenCount
+        content: result.text,
+        tokensUsed: result.usage.totalTokens
       };
     } catch (error) {
       return this.handleError(error);
     }
-  }
-  convertMessages(messages) {
-    const contents = [];
-    let systemInstruction = null;
-    for (const msg of messages) {
-      if (msg.role === "system") {
-        systemInstruction = {
-          parts: [{ text: msg.content }]
-        };
-      } else {
-        contents.push({
-          role: msg.role === "assistant" ? "model" : "user",
-          parts: [{ text: msg.content }]
-        });
-      }
-    }
-    return { contents, systemInstruction };
   }
 };
 
@@ -1625,74 +1719,47 @@ var GrokProvider = class extends BaseProvider {
   }
   async testApiKey(apiKey) {
     try {
-      const response = await this.makeRequest({
+      const body = buildGrokBody(
+        [{ role: "user", content: "Hello" }],
+        this.config.defaultModel,
+        { maxTokens: 10 }
+      );
+      const json = await this.makeRequest({
         url: `${this.config.endpoint}/chat/completions`,
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          model: this.config.defaultModel,
-          messages: [{ role: "user", content: "Hello" }],
-          max_tokens: 10
-        })
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body)
       });
-      return !response.error && response.choices && response.choices.length > 0;
+      return parseGrokResponse(json).success;
     } catch (e) {
       return false;
     }
   }
   async generateText(messages, apiKey, options) {
-    var _a, _b, _c;
-    const grokMessages = this.convertMessages(messages);
-    const requestBody = {
-      model: (options == null ? void 0 : options.model) || this.config.defaultModel,
-      messages: grokMessages,
-      max_tokens: (_a = options == null ? void 0 : options.maxTokens) != null ? _a : 4096,
-      temperature: (_b = options == null ? void 0 : options.temperature) != null ? _b : 0.7
-    };
     try {
-      const response = await this.makeRequest({
+      const model = (options == null ? void 0 : options.model) || this.config.defaultModel;
+      const body = buildGrokBody(messages, model, {
+        maxTokens: options == null ? void 0 : options.maxTokens,
+        temperature: options == null ? void 0 : options.temperature
+      });
+      const json = await this.makeRequest({
         url: `${this.config.endpoint}/chat/completions`,
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(requestBody)
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body)
       });
-      if (response.error) {
-        return {
-          success: false,
-          content: "",
-          error: response.error.message,
-          errorCode: response.error.code || response.error.type
-        };
+      const result = parseGrokResponse(json);
+      if (!result.success) {
+        return { success: false, content: "", error: result.error, errorCode: "API_ERROR" };
       }
-      if (!response.choices || response.choices.length === 0) {
-        return {
-          success: false,
-          content: "",
-          error: "No response generated",
-          errorCode: "EMPTY_RESPONSE"
-        };
-      }
-      const generatedText = response.choices[0].message.content;
       return {
         success: true,
-        content: generatedText,
-        tokensUsed: (_c = response.usage) == null ? void 0 : _c.total_tokens
+        content: result.text,
+        tokensUsed: result.usage.totalTokens
       };
     } catch (error) {
       return this.handleError(error);
     }
-  }
-  convertMessages(messages) {
-    return messages.map((msg) => ({
-      role: msg.role,
-      content: msg.content
-    }));
   }
 };
 
