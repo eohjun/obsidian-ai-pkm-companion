@@ -302,7 +302,7 @@ var AI_PROVIDERS = {
     name: "Claude",
     displayName: "Anthropic Claude",
     endpoint: "https://api.anthropic.com/v1",
-    defaultModel: "claude-haiku-4-5-20251001",
+    defaultModel: "claude-haiku-4-5",
     apiKeyPrefix: "sk-ant-"
   },
   openai: {
@@ -310,7 +310,7 @@ var AI_PROVIDERS = {
     name: "OpenAI",
     displayName: "OpenAI GPT",
     endpoint: "https://api.openai.com/v1",
-    defaultModel: "gpt-5-nano",
+    defaultModel: "gpt-5.4-nano",
     apiKeyPrefix: "sk-"
   },
   gemini: {
@@ -330,45 +330,57 @@ var AI_PROVIDERS = {
   }
 };
 var MODEL_CONFIGS = {
-  // ── OpenAI ── gpt-5 series: all reasoning models
-  // Thinking tokens consume from the same max_completion_tokens budget
-  // Must use max_completion_tokens (NOT max_tokens), temperature forbidden
+  // ── OpenAI ── GPT-5.4 series: reasoning via `reasoning.effort` param
+  // Uses max_completion_tokens. Temperature forbidden when reasoning.effort != 'none'.
+  // >272K input tokens: 2x input, 1.5x output pricing.
   "gpt-5.4": {
     id: "gpt-5.4",
     displayName: "GPT-5.4",
     provider: "openai",
-    contextWindow: 128e3,
+    contextWindow: 105e4,
     defaultCompletionTokens: 16384,
     isReasoning: true,
     inputCostPer1M: 2.5,
     outputCostPer1M: 15
   },
-  "gpt-5-mini": {
-    id: "gpt-5-mini",
-    displayName: "GPT-5 Mini",
+  "gpt-5.4-pro": {
+    id: "gpt-5.4-pro",
+    displayName: "GPT-5.4 Pro",
     provider: "openai",
-    contextWindow: 128e3,
+    contextWindow: 105e4,
+    defaultCompletionTokens: 16384,
+    isReasoning: true,
+    inputCostPer1M: 5,
+    outputCostPer1M: 30
+  },
+  "gpt-5.4-mini": {
+    id: "gpt-5.4-mini",
+    displayName: "GPT-5.4 Mini",
+    provider: "openai",
+    contextWindow: 4e5,
     defaultCompletionTokens: 8192,
     isReasoning: true,
-    inputCostPer1M: 0.25,
-    outputCostPer1M: 2
+    inputCostPer1M: 0.75,
+    outputCostPer1M: 4.5
   },
-  "gpt-5-nano": {
-    id: "gpt-5-nano",
-    displayName: "GPT-5 Nano",
+  "gpt-5.4-nano": {
+    id: "gpt-5.4-nano",
+    displayName: "GPT-5.4 Nano",
     provider: "openai",
-    contextWindow: 128e3,
+    contextWindow: 4e5,
     defaultCompletionTokens: 8192,
     isReasoning: true,
-    inputCostPer1M: 0.05,
-    outputCostPer1M: 0.4
+    inputCostPer1M: 0.2,
+    outputCostPer1M: 1.25
   },
-  // ── Gemini ── thinking tokens use separate budget (thinkingBudget), not maxOutputTokens
+  // ── Gemini ── thinking via `thinking_level` (LOW/MEDIUM/HIGH), separate budget
+  // ⚠️ Default maxOutputTokens is only 8,192 — set explicitly for full 65K!
+  // >200K input tokens on 3.1-pro: 2x input, 1.5x output pricing.
   "gemini-3.1-pro-preview": {
     id: "gemini-3.1-pro-preview",
     displayName: "Gemini 3.1 Pro",
     provider: "gemini",
-    contextWindow: 65536,
+    contextWindow: 1048576,
     defaultCompletionTokens: 4096,
     isReasoning: true,
     inputCostPer1M: 2,
@@ -378,17 +390,27 @@ var MODEL_CONFIGS = {
     id: "gemini-3.1-flash-lite-preview",
     displayName: "Gemini 3.1 Flash-Lite",
     provider: "gemini",
-    contextWindow: 65536,
+    contextWindow: 1e6,
     defaultCompletionTokens: 4096,
     isReasoning: true,
     inputCostPer1M: 0.25,
     outputCostPer1M: 1.5
   },
+  "gemini-2.5-pro": {
+    id: "gemini-2.5-pro",
+    displayName: "Gemini 2.5 Pro",
+    provider: "gemini",
+    contextWindow: 1048576,
+    defaultCompletionTokens: 4096,
+    isReasoning: true,
+    inputCostPer1M: 1.25,
+    outputCostPer1M: 10
+  },
   "gemini-2.5-flash": {
     id: "gemini-2.5-flash",
     displayName: "Gemini 2.5 Flash",
     provider: "gemini",
-    contextWindow: 65536,
+    contextWindow: 1048576,
     defaultCompletionTokens: 4096,
     isReasoning: true,
     inputCostPer1M: 0.3,
@@ -396,23 +418,23 @@ var MODEL_CONFIGS = {
   },
   "gemini-2.0-flash": {
     id: "gemini-2.0-flash",
-    displayName: "Gemini 2.0 Flash",
+    displayName: "Gemini 2.0 Flash (deprecated)",
     provider: "gemini",
-    contextWindow: 8192,
+    contextWindow: 1048576,
     defaultCompletionTokens: 2048,
     isReasoning: false,
     inputCostPer1M: 0.1,
-    outputCostPer1M: 0.4
+    outputCostPer1M: 0.4,
+    deprecated: true
+    // Retirement: 2026-06-01
   },
   // ── Anthropic ── extended thinking opt-in via `thinking` parameter
-  // Opus 4.6: adaptive thinking (model decides budget)
-  // Sonnet 4.6: manual budget (budget_tokens < max_tokens required)
-  // Haiku 4.5: no thinking (저가, simple classification)
+  // All models now support thinking. Opus 4.6: adaptive. Sonnet/Haiku: enabled.
   "claude-opus-4-6": {
     id: "claude-opus-4-6",
     displayName: "Claude Opus 4.6",
     provider: "claude",
-    contextWindow: 128e3,
+    contextWindow: 1e6,
     defaultCompletionTokens: 2048,
     isReasoning: false,
     inputCostPer1M: 5,
@@ -423,7 +445,7 @@ var MODEL_CONFIGS = {
     id: "claude-sonnet-4-6",
     displayName: "Claude Sonnet 4.6",
     provider: "claude",
-    contextWindow: 64e3,
+    contextWindow: 1e6,
     defaultCompletionTokens: 2048,
     isReasoning: false,
     inputCostPer1M: 3,
@@ -431,22 +453,49 @@ var MODEL_CONFIGS = {
     thinkingMode: "enabled",
     thinkingBudget: 1024
   },
+  "claude-haiku-4-5": {
+    id: "claude-haiku-4-5",
+    displayName: "Claude Haiku 4.5",
+    provider: "claude",
+    contextWindow: 1e6,
+    defaultCompletionTokens: 500,
+    isReasoning: false,
+    inputCostPer1M: 1,
+    outputCostPer1M: 5,
+    thinkingMode: "enabled",
+    thinkingBudget: 1024
+  },
+  // Date-pinned alias (backwards compatibility)
   "claude-haiku-4-5-20251001": {
     id: "claude-haiku-4-5-20251001",
     displayName: "Claude Haiku 4.5",
     provider: "claude",
-    contextWindow: 64e3,
+    contextWindow: 1e6,
     defaultCompletionTokens: 500,
     isReasoning: false,
     inputCostPer1M: 1,
-    outputCostPer1M: 5
+    outputCostPer1M: 5,
+    thinkingMode: "enabled",
+    thinkingBudget: 1024
   },
   // ── Grok (xAI) ──
+  // grok-4: premium, always-on reasoning. Do NOT send reasoning_effort (causes error).
+  // grok-4-1-fast: budget, 2M context (industry largest).
+  "grok-4": {
+    id: "grok-4",
+    displayName: "Grok 4",
+    provider: "grok",
+    contextWindow: 256e3,
+    defaultCompletionTokens: 4096,
+    isReasoning: true,
+    inputCostPer1M: 3,
+    outputCostPer1M: 15
+  },
   "grok-4-1-fast": {
     id: "grok-4-1-fast",
     displayName: "Grok 4.1 Fast",
     provider: "grok",
-    contextWindow: 16384,
+    contextWindow: 2e6,
     defaultCompletionTokens: 4096,
     isReasoning: true,
     inputCostPer1M: 0.2,
@@ -456,7 +505,7 @@ var MODEL_CONFIGS = {
     id: "grok-4-1-fast-non-reasoning",
     displayName: "Grok 4.1 Fast (Non-Reasoning)",
     provider: "grok",
-    contextWindow: 16384,
+    contextWindow: 2e6,
     defaultCompletionTokens: 4096,
     isReasoning: false,
     inputCostPer1M: 0.2,
@@ -470,7 +519,7 @@ function isReasoningModel(modelId) {
   const config = getModelConfig(modelId);
   if (config)
     return config.isReasoning;
-  return modelId.startsWith("gpt-5") || modelId.startsWith("o1") || modelId.startsWith("o3");
+  return modelId.startsWith("gpt-5") || modelId.startsWith("o1") || modelId.startsWith("o3") || modelId.startsWith("o4");
 }
 function getEffectiveMaxTokens(modelId, requestedTokens) {
   const config = getModelConfig(modelId);
@@ -506,14 +555,22 @@ function calculateCost(modelId, inputTokens, outputTokens) {
 
 // node_modules/obsidian-llm-shared/dist/providers/openai.js
 function buildOpenAIBody(messages, model, opts = {}) {
-  var _a;
+  var _a, _b;
   const reasoning = isReasoningModel(model);
   const tokens = getEffectiveMaxTokens(model, (_a = opts.maxTokens) != null ? _a : 4096);
+  const isGPT54 = model.startsWith("gpt-5.4");
   const body = {
     model,
     messages: messages.map((m) => ({ role: m.role, content: m.content }))
   };
-  if (reasoning) {
+  if (isGPT54) {
+    body.max_completion_tokens = tokens;
+    const effort = (_b = opts.reasoningEffort) != null ? _b : "none";
+    body.reasoning = { effort };
+    if (effort === "none" && opts.temperature !== void 0) {
+      body.temperature = opts.temperature;
+    }
+  } else if (reasoning) {
     body.max_completion_tokens = tokens;
   } else {
     body.max_tokens = tokens;
