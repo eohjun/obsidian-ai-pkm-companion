@@ -2,6 +2,7 @@ var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true });
@@ -15,6 +16,7 @@ var __copyProps = (to, from, except, desc) => {
   return to;
 };
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 
 // src/main.ts
 var main_exports = {};
@@ -27,7 +29,7 @@ var import_obsidian5 = require("obsidian");
 // src/core/application/services/event-emitter.ts
 var EventEmitter = class {
   constructor() {
-    this.listeners = /* @__PURE__ */ new Map();
+    __publicField(this, "listeners", /* @__PURE__ */ new Map());
   }
   /**
    * Subscribe to an event
@@ -126,10 +128,11 @@ function canRetry(job) {
 // src/core/application/services/job-queue.ts
 var JobQueue = class {
   constructor(emitter) {
-    this.queue = [];
-    this.running = null;
-    this.paused = false;
-    this.executors = /* @__PURE__ */ new Map();
+    __publicField(this, "queue", []);
+    __publicField(this, "running", null);
+    __publicField(this, "paused", false);
+    __publicField(this, "executors", /* @__PURE__ */ new Map());
+    __publicField(this, "emitter");
     this.emitter = emitter != null ? emitter : getEventEmitter();
   }
   /**
@@ -813,7 +816,8 @@ function estimateTokens(text) {
 // src/core/application/services/ai-service.ts
 var AIService = class {
   constructor(settings) {
-    this.providers = /* @__PURE__ */ new Map();
+    __publicField(this, "providers", /* @__PURE__ */ new Map());
+    __publicField(this, "settings");
     this.settings = settings;
   }
   /**
@@ -997,7 +1001,9 @@ function resetAIService() {
 // src/core/application/services/cost-tracker.ts
 var CostTracker = class {
   constructor(budgetLimit, emitter) {
-    this.records = [];
+    __publicField(this, "records", []);
+    __publicField(this, "budgetLimit");
+    __publicField(this, "emitter");
     this.budgetLimit = budgetLimit;
     this.emitter = emitter != null ? emitter : getEventEmitter();
   }
@@ -1139,6 +1145,18 @@ var CostTracker = class {
 // src/core/domain/entities/analysis-result.ts
 var AnalysisResult = class _AnalysisResult {
   constructor(data) {
+    __publicField(this, "_id");
+    __publicField(this, "_sourceType");
+    __publicField(this, "_sourceContent");
+    __publicField(this, "_sourceUrl");
+    __publicField(this, "_sourcePath");
+    __publicField(this, "_suggestedTitle");
+    __publicField(this, "_summary");
+    __publicField(this, "_keyInsights");
+    __publicField(this, "_suggestedTags");
+    __publicField(this, "_relatedTopics");
+    __publicField(this, "_tokensUsed");
+    __publicField(this, "_createdAt");
     this._id = data.id;
     this._sourceType = data.sourceType;
     this._sourceContent = data.sourceContent;
@@ -1268,6 +1286,8 @@ var AnalysisResult = class _AnalysisResult {
 // src/core/application/use-cases/analyze-content.ts
 var AnalyzeContentUseCase = class {
   constructor(aiService, costTracker) {
+    __publicField(this, "aiService");
+    __publicField(this, "costTracker");
     this.aiService = aiService != null ? aiService : getAIService();
     this.costTracker = costTracker;
   }
@@ -1416,6 +1436,8 @@ Provide your analysis in the specified JSON format.`;
 // src/core/application/use-cases/suggest-note-topics.ts
 var SuggestNoteTopicsUseCase = class {
   constructor(aiService, costTracker) {
+    __publicField(this, "aiService");
+    __publicField(this, "costTracker");
     this.aiService = aiService != null ? aiService : getAIService();
     this.costTracker = costTracker;
   }
@@ -1602,8 +1624,8 @@ var BaseProvider = class {
 var ClaudeProvider = class extends BaseProvider {
   constructor() {
     super(...arguments);
-    this.id = "claude";
-    this.name = "Anthropic Claude";
+    __publicField(this, "id", "claude");
+    __publicField(this, "name", "Anthropic Claude");
   }
   async testApiKey(apiKey) {
     try {
@@ -1663,8 +1685,8 @@ var ClaudeProvider = class extends BaseProvider {
 var OpenAIProvider = class extends BaseProvider {
   constructor() {
     super(...arguments);
-    this.id = "openai";
-    this.name = "OpenAI";
+    __publicField(this, "id", "openai");
+    __publicField(this, "name", "OpenAI");
   }
   async testApiKey(apiKey) {
     try {
@@ -1716,8 +1738,8 @@ var OpenAIProvider = class extends BaseProvider {
 var GeminiProvider = class extends BaseProvider {
   constructor() {
     super(...arguments);
-    this.id = "gemini";
-    this.name = "Google Gemini";
+    __publicField(this, "id", "gemini");
+    __publicField(this, "name", "Google Gemini");
   }
   async testApiKey(apiKey) {
     try {
@@ -1771,8 +1793,8 @@ var GeminiProvider = class extends BaseProvider {
 var GrokProvider = class extends BaseProvider {
   constructor() {
     super(...arguments);
-    this.id = "grok";
-    this.name = "xAI Grok";
+    __publicField(this, "id", "grok");
+    __publicField(this, "name", "xAI Grok");
   }
   async testApiKey(apiKey) {
     try {
@@ -1859,6 +1881,7 @@ var FEATURE_LABELS = {
 var SettingsTab = class extends import_obsidian2.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
+    __publicField(this, "plugin");
     this.plugin = plugin;
   }
   display() {
@@ -2012,13 +2035,14 @@ var import_obsidian3 = require("obsidian");
 var AnalyzeModal = class extends import_obsidian3.Modal {
   constructor(app, onSubmit) {
     super(app);
-    this.result = null;
-    this.sourceType = "text";
-    this.content = "";
-    this.sourceUrl = "";
-    this.selectedNote = null;
-    this.language = "auto";
-    this.detailLevel = "standard";
+    __publicField(this, "result", null);
+    __publicField(this, "onSubmit");
+    __publicField(this, "sourceType", "text");
+    __publicField(this, "content", "");
+    __publicField(this, "sourceUrl", "");
+    __publicField(this, "selectedNote", null);
+    __publicField(this, "language", "auto");
+    __publicField(this, "detailLevel", "standard");
     this.onSubmit = onSubmit;
   }
   onOpen() {
@@ -2153,15 +2177,16 @@ var ANALYSIS_VIEW_TYPE = "note-topic-finder-view";
 var AnalysisView = class extends import_obsidian4.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
-    this.currentResult = null;
-    this.currentJob = null;
-    this.suggestedTopics = null;
-    this.isSuggestingTopics = false;
-    this.viewingTopics = false;
+    __publicField(this, "plugin");
+    __publicField(this, "currentResult", null);
+    __publicField(this, "currentJob", null);
+    __publicField(this, "suggestedTopics", null);
+    __publicField(this, "isSuggestingTopics", false);
+    __publicField(this, "viewingTopics", false);
     // Track which view to show
     // Loading overlay elements (direct DOM references)
-    this.loadingOverlayEl = null;
-    this.loadingTextEl = null;
+    __publicField(this, "loadingOverlayEl", null);
+    __publicField(this, "loadingTextEl", null);
     this.plugin = plugin;
   }
   getViewType() {
@@ -2588,7 +2613,11 @@ var DEFAULT_SETTINGS = {
 var NoteTopicFinderPlugin = class extends import_obsidian5.Plugin {
   constructor() {
     super(...arguments);
-    this.analysisView = null;
+    __publicField(this, "settings");
+    __publicField(this, "aiService");
+    __publicField(this, "costTracker");
+    __publicField(this, "jobQueue");
+    __publicField(this, "analysisView", null);
   }
   async onload() {
     await this.loadSettings();

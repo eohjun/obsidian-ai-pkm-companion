@@ -1,7 +1,7 @@
 {
 	"id": "note-topic-finder",
 	"name": "Note Topic Finder",
-	"version": "0.4.27",
+	"version": "0.4.28",
 	"minAppVersion": "1.5.0",
 	"description": "Analyze content and discover permanent note topics from URLs, text, and vault notes",
 	"author": "eohjun",
