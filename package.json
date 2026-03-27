@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-note-topic-finder",
-	"version": "0.4.24",
+	"version": "0.4.25",
 	"description": "Analyze content and discover permanent note topics from URLs, text, and vault notes",
 	"main": "main.js",
 	"scripts": {
