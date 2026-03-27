@@ -743,11 +743,11 @@ var TIER_MAP = {
   // Claude
   "claude-opus-4-6": "premium",
   "claude-sonnet-4-6": "standard",
-  "claude-haiku-4-5-20251001": "economy",
+  "claude-haiku-4-5": "economy",
   // OpenAI
   "gpt-5.4": "premium",
-  "gpt-5-mini": "standard",
-  "gpt-5-nano": "economy",
+  "gpt-5.4-mini": "standard",
+  "gpt-5.4-nano": "economy",
   // Gemini
   "gemini-3.1-pro-preview": "premium",
   "gemini-3.1-flash-lite-preview": "economy",
@@ -783,15 +783,15 @@ var MODEL_CONFIGS2 = buildExtendedConfigs();
 var AI_PROVIDERS2 = AI_PROVIDERS;
 var FEATURE_DEFAULT_MODELS = {
   "content-analysis": {
-    claude: "claude-haiku-4-5-20251001",
+    claude: "claude-haiku-4-5",
     gemini: "gemini-2.0-flash",
-    openai: "gpt-5-nano",
+    openai: "gpt-5.4-nano",
     grok: "grok-4-1-fast-non-reasoning"
   },
   "permanent-note": {
     claude: "claude-sonnet-4-6",
     gemini: "gemini-2.5-flash",
-    openai: "gpt-5-mini",
+    openai: "gpt-5.4-mini",
     grok: "grok-4-1-fast"
   }
 };
@@ -2567,17 +2567,17 @@ var DEFAULT_SETTINGS = {
     models: {
       claude: "claude-sonnet-4-6",
       gemini: "gemini-2.5-flash",
-      openai: "gpt-5-mini",
+      openai: "gpt-5.4-mini",
       grok: "grok-4-1-fast"
     },
     featureModels: {
       "content-analysis": {
         provider: "openai",
-        model: "gpt-5-nano"
+        model: "gpt-5.4-nano"
       },
       "permanent-note": {
         provider: "openai",
-        model: "gpt-5-mini"
+        model: "gpt-5.4-mini"
       }
     },
     defaultLanguage: "auto",
