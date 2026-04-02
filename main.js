@@ -533,7 +533,8 @@ function getEffectiveMaxTokens(modelId, requestedTokens) {
     return requestedTokens;
   }
   if (config.thinkingMode) {
-    return Math.max(requestedTokens, config.defaultCompletionTokens);
+    const minRequired = config.thinkingBudget ? config.thinkingBudget + 1 : config.defaultCompletionTokens;
+    return Math.max(requestedTokens, minRequired);
   }
   if (!config.isReasoning)
     return requestedTokens;
@@ -569,7 +570,9 @@ function buildOpenAIBody(messages, model, opts = {}) {
   if (isGPT54) {
     body.max_completion_tokens = tokens;
     const effort = (_b = opts.reasoningEffort) != null ? _b : "none";
-    body.reasoning = { effort };
+    if (effort !== "none") {
+      body.reasoning = { effort };
+    }
     if (effort === "none" && opts.temperature !== void 0) {
       body.temperature = opts.temperature;
     }
@@ -596,6 +599,10 @@ function parseOpenAIResponse(json) {
     return fail("Invalid response: not an object");
   }
   const data = json;
+  if (data.error) {
+    const err = data.error;
+    return fail(typeof err.message === "string" ? err.message : "API error");
+  }
   const choices = data.choices;
   const message = (_a = choices == null ? void 0 : choices[0]) == null ? void 0 : _a.message;
   const text = typeof (message == null ? void 0 : message.content) === "string" ? message.content : "";
@@ -647,6 +654,10 @@ function parseAnthropicResponse(json) {
     return fail("Invalid response: not an object");
   }
   const data = json;
+  if (data.type === "error" && data.error) {
+    const err = data.error;
+    return fail(typeof err.message === "string" ? err.message : "API error");
+  }
   const content = data.content;
   const text = (_a = content == null ? void 0 : content.filter((block) => block.type === "text").map((block) => typeof block.text === "string" ? block.text : "").join("")) != null ? _a : "";
   const model = typeof data.model === "string" ? data.model : "";
@@ -698,6 +709,10 @@ function parseGeminiResponse(json) {
     return fail("Invalid response: not an object");
   }
   const data = json;
+  if (data.error) {
+    const err = data.error;
+    return fail(typeof err.message === "string" ? err.message : "API error");
+  }
   const candidates = data.candidates;
   const content = (_a = candidates == null ? void 0 : candidates[0]) == null ? void 0 : _a.content;
   const parts = content == null ? void 0 : content.parts;
