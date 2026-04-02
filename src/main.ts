@@ -35,17 +35,17 @@ const DEFAULT_SETTINGS: PluginSettings = {
     models: {
       claude: 'claude-sonnet-4-6',
       gemini: 'gemini-2.5-flash',
-      openai: 'gpt-5-mini',
+      openai: 'gpt-5.4-mini',
       grok: 'grok-4-1-fast',
     },
     featureModels: {
       'content-analysis': {
         provider: 'openai',
-        model: 'gpt-5-nano',
+        model: 'gpt-5.4-nano',
       },
       'permanent-note': {
         provider: 'openai',
-        model: 'gpt-5-mini',
+        model: 'gpt-5.4-mini',
       },
     },
     defaultLanguage: 'auto',
