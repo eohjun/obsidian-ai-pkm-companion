@@ -63,6 +63,10 @@ export class AnalysisView extends ItemView {
     this.render();
   }
 
+  public getCurrentResult(): AnalysisResult | null {
+    return this.currentResult;
+  }
+
   public showTopicSuggestions(topics: NoteTopic[]): void {
     this.hideLoadingOverlay();
     this.suggestedTopics = topics;

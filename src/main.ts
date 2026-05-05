@@ -6,6 +6,7 @@
 import { Plugin, Notice, requestUrl } from 'obsidian';
 import type { AIProviderType, AISettings } from './core/domain/interfaces/llm-provider';
 import { AI_PROVIDERS } from './core/domain/constants/model-configs';
+import { isDeprecatedModel, getProviderConfig } from 'obsidian-llm-shared';
 import {
   AIService,
   initializeAIService,
@@ -146,7 +147,7 @@ export default class NoteTopicFinderPlugin extends Plugin {
       name: 'Suggest permanent note topics from analysis',
       callback: () => {
         if (this.analysisView) {
-          const currentResult = (this.analysisView as AnalysisView & { currentResult: AnalysisResult | null }).currentResult;
+          const currentResult = this.analysisView.getCurrentResult();
           if (currentResult) {
             this.suggestNoteTopics(currentResult);
           } else {
@@ -350,6 +351,26 @@ export default class NoteTopicFinderPlugin extends Plugin {
 
   async loadSettings(): Promise<void> {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    this.migrateDeprecatedModels();
+  }
+
+  private migrateDeprecatedModels(): void {
+    const providers: AIProviderType[] = ['claude', 'openai', 'gemini', 'grok'];
+    let migrated = false;
+    for (const provider of providers) {
+      const saved = this.settings.ai.models[provider];
+      if (saved && isDeprecatedModel(saved)) {
+        const fallback = getProviderConfig(provider)?.defaultModel;
+        if (fallback) {
+          console.warn(`[note-topic-finder] Migrated deprecated model ${saved} → ${fallback}`);
+          this.settings.ai.models[provider] = fallback;
+          migrated = true;
+        }
+      }
+    }
+    if (migrated) {
+      void this.saveData(this.settings);
+    }
   }
 
   async saveSettings(): Promise<void> {

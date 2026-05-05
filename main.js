@@ -26,6 +26,525 @@ __export(main_exports, {
 module.exports = __toCommonJS(main_exports);
 var import_obsidian5 = require("obsidian");
 
+// node_modules/obsidian-llm-shared/dist/model-configs.js
+var AI_PROVIDERS = {
+  claude: {
+    id: "claude",
+    name: "Claude",
+    displayName: "Anthropic Claude",
+    endpoint: "https://api.anthropic.com/v1",
+    defaultModel: "claude-haiku-4-5",
+    apiKeyPrefix: "sk-ant-"
+  },
+  openai: {
+    id: "openai",
+    name: "OpenAI",
+    displayName: "OpenAI GPT",
+    endpoint: "https://api.openai.com/v1",
+    defaultModel: "gpt-5.4-nano",
+    apiKeyPrefix: "sk-"
+  },
+  gemini: {
+    id: "gemini",
+    name: "Gemini",
+    displayName: "Google Gemini",
+    endpoint: "https://generativelanguage.googleapis.com/v1beta",
+    defaultModel: "gemini-3.1-flash-lite-preview",
+    apiKeyPrefix: "AIza"
+  },
+  grok: {
+    id: "grok",
+    name: "Grok",
+    displayName: "xAI Grok",
+    endpoint: "https://api.x.ai/v1",
+    defaultModel: "grok-4-1-fast"
+  }
+};
+var MODEL_CONFIGS = {
+  // ── OpenAI ── GPT-5 series: reasoning via `reasoning.effort` param
+  // Uses max_completion_tokens. Temperature forbidden when reasoning.effort != 'none'.
+  // >272K input tokens: 2x input, 1.5x output pricing.
+  // GPT-5.5 (Apr 24 2026): new flagship. mini/nano not yet available — flagship-only.
+  "gpt-5.5": {
+    id: "gpt-5.5",
+    displayName: "GPT-5.5",
+    provider: "openai",
+    contextWindow: 105e4,
+    defaultCompletionTokens: 16384,
+    isReasoning: true,
+    inputCostPer1M: 5,
+    outputCostPer1M: 30
+  },
+  "gpt-5.5-pro": {
+    id: "gpt-5.5-pro",
+    displayName: "GPT-5.5 Pro",
+    provider: "openai",
+    contextWindow: 105e4,
+    defaultCompletionTokens: 16384,
+    isReasoning: true,
+    inputCostPer1M: 30,
+    outputCostPer1M: 180
+  },
+  "gpt-5.4": {
+    id: "gpt-5.4",
+    displayName: "GPT-5.4",
+    provider: "openai",
+    contextWindow: 105e4,
+    defaultCompletionTokens: 16384,
+    isReasoning: true,
+    inputCostPer1M: 2.5,
+    outputCostPer1M: 15
+  },
+  "gpt-5.4-pro": {
+    id: "gpt-5.4-pro",
+    displayName: "GPT-5.4 Pro",
+    provider: "openai",
+    contextWindow: 105e4,
+    defaultCompletionTokens: 16384,
+    isReasoning: true,
+    inputCostPer1M: 30,
+    outputCostPer1M: 180
+  },
+  "gpt-5.4-mini": {
+    id: "gpt-5.4-mini",
+    displayName: "GPT-5.4 Mini",
+    provider: "openai",
+    contextWindow: 4e5,
+    defaultCompletionTokens: 8192,
+    isReasoning: true,
+    inputCostPer1M: 0.75,
+    outputCostPer1M: 4.5
+  },
+  "gpt-5.4-nano": {
+    id: "gpt-5.4-nano",
+    displayName: "GPT-5.4 Nano",
+    provider: "openai",
+    contextWindow: 4e5,
+    defaultCompletionTokens: 8192,
+    isReasoning: true,
+    inputCostPer1M: 0.2,
+    outputCostPer1M: 1.25
+  },
+  // ── Gemini ── thinking via `thinking_level` (LOW/MEDIUM/HIGH), separate budget
+  // ⚠️ Default maxOutputTokens is only 8,192 — set explicitly for full 65K!
+  // >200K input tokens on 3.1-pro: 2x input, 1.5x output pricing.
+  "gemini-3.1-pro-preview": {
+    id: "gemini-3.1-pro-preview",
+    displayName: "Gemini 3.1 Pro",
+    provider: "gemini",
+    contextWindow: 1048576,
+    defaultCompletionTokens: 4096,
+    isReasoning: true,
+    inputCostPer1M: 2,
+    outputCostPer1M: 12
+  },
+  "gemini-3.1-flash-lite-preview": {
+    id: "gemini-3.1-flash-lite-preview",
+    displayName: "Gemini 3.1 Flash-Lite",
+    provider: "gemini",
+    contextWindow: 1e6,
+    defaultCompletionTokens: 4096,
+    isReasoning: true,
+    inputCostPer1M: 0.25,
+    outputCostPer1M: 1.5
+  },
+  "gemini-2.5-pro": {
+    id: "gemini-2.5-pro",
+    displayName: "Gemini 2.5 Pro",
+    provider: "gemini",
+    contextWindow: 1048576,
+    defaultCompletionTokens: 4096,
+    isReasoning: true,
+    inputCostPer1M: 1.25,
+    outputCostPer1M: 10
+  },
+  "gemini-2.5-flash": {
+    id: "gemini-2.5-flash",
+    displayName: "Gemini 2.5 Flash",
+    provider: "gemini",
+    contextWindow: 1048576,
+    defaultCompletionTokens: 4096,
+    isReasoning: true,
+    inputCostPer1M: 0.3,
+    outputCostPer1M: 2.5
+  },
+  "gemini-2.0-flash": {
+    id: "gemini-2.0-flash",
+    displayName: "Gemini 2.0 Flash (retiring 2026-06-01)",
+    provider: "gemini",
+    contextWindow: 1048576,
+    defaultCompletionTokens: 2048,
+    isReasoning: false,
+    inputCostPer1M: 0.1,
+    outputCostPer1M: 0.4,
+    deprecated: true
+    // Retirement: 2026-06-01 — to be fully removed in v1.4.0
+  },
+  // ── Anthropic ── extended thinking opt-in via `thinking` parameter
+  // Opus 4.7 (Apr 16 2026): Adaptive ONLY (Extended unsupported, breaking vs 4.6).
+  // Opus 4.6 (Feb 5 2026): Adaptive recommended; manual ('enabled' + budget_tokens) deprecated.
+  // Sonnet 4.6 / Haiku 4.5: 'enabled' with budget_tokens.
+  "claude-opus-4-7": {
+    id: "claude-opus-4-7",
+    displayName: "Claude Opus 4.7",
+    provider: "claude",
+    contextWindow: 1e6,
+    defaultCompletionTokens: 8192,
+    isReasoning: false,
+    inputCostPer1M: 5,
+    outputCostPer1M: 25,
+    thinkingMode: "adaptive"
+  },
+  "claude-opus-4-6": {
+    id: "claude-opus-4-6",
+    displayName: "Claude Opus 4.6",
+    provider: "claude",
+    contextWindow: 1e6,
+    defaultCompletionTokens: 2048,
+    isReasoning: false,
+    inputCostPer1M: 5,
+    outputCostPer1M: 25,
+    thinkingMode: "adaptive"
+  },
+  "claude-sonnet-4-6": {
+    id: "claude-sonnet-4-6",
+    displayName: "Claude Sonnet 4.6",
+    provider: "claude",
+    contextWindow: 1e6,
+    defaultCompletionTokens: 2048,
+    isReasoning: false,
+    inputCostPer1M: 3,
+    outputCostPer1M: 15,
+    thinkingMode: "enabled",
+    thinkingBudget: 1024
+  },
+  "claude-haiku-4-5": {
+    id: "claude-haiku-4-5",
+    displayName: "Claude Haiku 4.5",
+    provider: "claude",
+    contextWindow: 2e5,
+    defaultCompletionTokens: 500,
+    isReasoning: false,
+    inputCostPer1M: 1,
+    outputCostPer1M: 5,
+    thinkingMode: "enabled",
+    thinkingBudget: 1024
+  },
+  // Date-pinned alias (backwards compatibility)
+  "claude-haiku-4-5-20251001": {
+    id: "claude-haiku-4-5-20251001",
+    displayName: "Claude Haiku 4.5",
+    provider: "claude",
+    contextWindow: 2e5,
+    defaultCompletionTokens: 500,
+    isReasoning: false,
+    inputCostPer1M: 1,
+    outputCostPer1M: 5,
+    thinkingMode: "enabled",
+    thinkingBudget: 1024
+  },
+  // ── Grok (xAI) ──
+  // grok-4.3 (Apr 30 2026): xAI-recommended default. Always-on reasoning, 1M context.
+  //   Tiered pricing above 200k tokens (lib uses base rate).
+  // grok-4: premium, always-on reasoning. Do NOT send reasoning_effort (causes error).
+  // grok-4-1-fast: budget, 2M context (industry largest).
+  "grok-4.3": {
+    id: "grok-4.3",
+    displayName: "Grok 4.3",
+    provider: "grok",
+    contextWindow: 1e6,
+    defaultCompletionTokens: 4096,
+    isReasoning: true,
+    inputCostPer1M: 1.25,
+    outputCostPer1M: 2.5
+  },
+  "grok-4": {
+    id: "grok-4",
+    displayName: "Grok 4",
+    provider: "grok",
+    contextWindow: 256e3,
+    defaultCompletionTokens: 4096,
+    isReasoning: true,
+    inputCostPer1M: 3,
+    outputCostPer1M: 15
+  },
+  "grok-4-1-fast": {
+    id: "grok-4-1-fast",
+    displayName: "Grok 4.1 Fast",
+    provider: "grok",
+    contextWindow: 2e6,
+    defaultCompletionTokens: 4096,
+    isReasoning: true,
+    inputCostPer1M: 0.2,
+    outputCostPer1M: 0.5
+  },
+  "grok-4-1-fast-non-reasoning": {
+    id: "grok-4-1-fast-non-reasoning",
+    displayName: "Grok 4.1 Fast (Non-Reasoning)",
+    provider: "grok",
+    contextWindow: 2e6,
+    defaultCompletionTokens: 4096,
+    isReasoning: false,
+    inputCostPer1M: 0.2,
+    outputCostPer1M: 0.5
+  }
+};
+var PROVIDER_ALIASES = {
+  anthropic: "claude"
+};
+function resolveProvider(provider) {
+  var _a;
+  return (_a = PROVIDER_ALIASES[provider]) != null ? _a : provider;
+}
+function getModelConfig(modelId) {
+  return MODEL_CONFIGS[modelId];
+}
+function getProviderConfig(provider) {
+  const resolved = resolveProvider(provider);
+  return AI_PROVIDERS[resolved];
+}
+function isDeprecatedModel(modelId) {
+  var _a;
+  return ((_a = getModelConfig(modelId)) == null ? void 0 : _a.deprecated) === true;
+}
+function isReasoningModel(modelId) {
+  const config = getModelConfig(modelId);
+  if (config)
+    return config.isReasoning;
+  return modelId.startsWith("gpt-5") || modelId.startsWith("o1") || modelId.startsWith("o3") || modelId.startsWith("o4");
+}
+function getEffectiveMaxTokens(modelId, requestedTokens) {
+  const config = getModelConfig(modelId);
+  if (!config) {
+    if (isReasoningModel(modelId)) {
+      return Math.max(requestedTokens, 8192);
+    }
+    return requestedTokens;
+  }
+  if (config.thinkingMode) {
+    const minRequired = config.thinkingBudget ? config.thinkingBudget + 1 : config.defaultCompletionTokens;
+    return Math.max(requestedTokens, minRequired);
+  }
+  if (!config.isReasoning)
+    return requestedTokens;
+  return Math.max(requestedTokens, config.defaultCompletionTokens);
+}
+function getThinkingConfig(modelId) {
+  var _a;
+  const config = getModelConfig(modelId);
+  if (!(config == null ? void 0 : config.thinkingMode))
+    return void 0;
+  if (config.thinkingMode === "adaptive") {
+    return { type: "adaptive" };
+  }
+  return { type: "enabled", budget_tokens: (_a = config.thinkingBudget) != null ? _a : 1024 };
+}
+function calculateCost(modelId, inputTokens, outputTokens) {
+  const config = getModelConfig(modelId);
+  if (!config)
+    return 0;
+  return inputTokens / 1e6 * config.inputCostPer1M + outputTokens / 1e6 * config.outputCostPer1M;
+}
+
+// node_modules/obsidian-llm-shared/dist/providers/openai.js
+function buildOpenAIBody(messages, model, opts = {}) {
+  var _a, _b;
+  const reasoning = isReasoningModel(model);
+  const tokens = getEffectiveMaxTokens(model, (_a = opts.maxTokens) != null ? _a : 4096);
+  const isGPT5 = model.startsWith("gpt-5");
+  const body = {
+    model,
+    messages: messages.map((m) => ({ role: m.role, content: m.content }))
+  };
+  if (isGPT5) {
+    body.max_completion_tokens = tokens;
+    const effort = (_b = opts.reasoningEffort) != null ? _b : "none";
+    if (effort !== "none") {
+      body.reasoning = { effort };
+    }
+    if (effort === "none" && opts.temperature !== void 0) {
+      body.temperature = opts.temperature;
+    }
+  } else if (reasoning) {
+    body.max_completion_tokens = tokens;
+  } else {
+    body.max_tokens = tokens;
+    if (opts.temperature !== void 0) {
+      body.temperature = opts.temperature;
+    }
+  }
+  return body;
+}
+function parseOpenAIResponse(json) {
+  var _a;
+  const fail = (error) => ({
+    success: false,
+    text: "",
+    model: "",
+    usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+    error
+  });
+  if (!json || typeof json !== "object") {
+    return fail("Invalid response: not an object");
+  }
+  const data = json;
+  if (data.error) {
+    const err = data.error;
+    return fail(typeof err.message === "string" ? err.message : "API error");
+  }
+  const choices = data.choices;
+  const message = (_a = choices == null ? void 0 : choices[0]) == null ? void 0 : _a.message;
+  const text = typeof (message == null ? void 0 : message.content) === "string" ? message.content : "";
+  const model = typeof data.model === "string" ? data.model : "";
+  const usage = data.usage;
+  const inputTokens = typeof (usage == null ? void 0 : usage.prompt_tokens) === "number" ? usage.prompt_tokens : 0;
+  const outputTokens = typeof (usage == null ? void 0 : usage.completion_tokens) === "number" ? usage.completion_tokens : 0;
+  const totalTokens = typeof (usage == null ? void 0 : usage.total_tokens) === "number" ? usage.total_tokens : inputTokens + outputTokens;
+  return {
+    success: true,
+    text,
+    model,
+    usage: { inputTokens, outputTokens, totalTokens }
+  };
+}
+
+// node_modules/obsidian-llm-shared/dist/providers/anthropic.js
+function buildAnthropicBody(messages, model, opts = {}) {
+  var _a;
+  const tokens = getEffectiveMaxTokens(model, (_a = opts.maxTokens) != null ? _a : 4096);
+  const thinkingCfg = getThinkingConfig(model);
+  const systemMessages = messages.filter((m) => m.role === "system");
+  const nonSystemMessages = messages.filter((m) => m.role !== "system");
+  const body = {
+    model,
+    max_tokens: tokens,
+    messages: nonSystemMessages.map((m) => ({ role: m.role, content: m.content }))
+  };
+  if (systemMessages.length > 0) {
+    body.system = systemMessages.map((m) => m.content).join("\n\n");
+  }
+  if (thinkingCfg) {
+    body.thinking = thinkingCfg;
+  } else if (opts.temperature !== void 0) {
+    body.temperature = opts.temperature;
+  }
+  return body;
+}
+function parseAnthropicResponse(json) {
+  var _a;
+  const fail = (error) => ({
+    success: false,
+    text: "",
+    model: "",
+    usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+    error
+  });
+  if (!json || typeof json !== "object") {
+    return fail("Invalid response: not an object");
+  }
+  const data = json;
+  if (data.type === "error" && data.error) {
+    const err = data.error;
+    return fail(typeof err.message === "string" ? err.message : "API error");
+  }
+  const content = data.content;
+  const text = (_a = content == null ? void 0 : content.filter((block) => block.type === "text").map((block) => typeof block.text === "string" ? block.text : "").join("")) != null ? _a : "";
+  const model = typeof data.model === "string" ? data.model : "";
+  const usage = data.usage;
+  const inputTokens = typeof (usage == null ? void 0 : usage.input_tokens) === "number" ? usage.input_tokens : 0;
+  const outputTokens = typeof (usage == null ? void 0 : usage.output_tokens) === "number" ? usage.output_tokens : 0;
+  return {
+    success: true,
+    text,
+    model,
+    usage: { inputTokens, outputTokens, totalTokens: inputTokens + outputTokens }
+  };
+}
+
+// node_modules/obsidian-llm-shared/dist/providers/gemini.js
+function buildGeminiBody(messages, model, opts = {}) {
+  var _a, _b;
+  const tokens = getEffectiveMaxTokens(model, (_a = opts.maxTokens) != null ? _a : 4096);
+  const systemMessages = messages.filter((m) => m.role === "system");
+  const nonSystemMessages = messages.filter((m) => m.role !== "system");
+  const contents = nonSystemMessages.map((m) => ({
+    role: m.role === "assistant" ? "model" : "user",
+    parts: [{ text: m.content }]
+  }));
+  const body = {
+    contents,
+    generationConfig: {
+      maxOutputTokens: tokens,
+      temperature: (_b = opts.temperature) != null ? _b : 0.3
+    }
+  };
+  if (systemMessages.length > 0) {
+    body.systemInstruction = {
+      parts: [{ text: systemMessages.map((m) => m.content).join("\n\n") }]
+    };
+  }
+  return body;
+}
+function parseGeminiResponse(json) {
+  var _a, _b;
+  const fail = (error) => ({
+    success: false,
+    text: "",
+    model: "",
+    usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+    error
+  });
+  if (!json || typeof json !== "object") {
+    return fail("Invalid response: not an object");
+  }
+  const data = json;
+  if (data.error) {
+    const err = data.error;
+    return fail(typeof err.message === "string" ? err.message : "API error");
+  }
+  const candidates = data.candidates;
+  const content = (_a = candidates == null ? void 0 : candidates[0]) == null ? void 0 : _a.content;
+  const parts = content == null ? void 0 : content.parts;
+  const text = typeof ((_b = parts == null ? void 0 : parts[0]) == null ? void 0 : _b.text) === "string" ? parts[0].text : "";
+  const model = typeof data.modelVersion === "string" ? data.modelVersion : "";
+  const usageMeta = data.usageMetadata;
+  const inputTokens = typeof (usageMeta == null ? void 0 : usageMeta.promptTokenCount) === "number" ? usageMeta.promptTokenCount : 0;
+  const outputTokens = typeof (usageMeta == null ? void 0 : usageMeta.candidatesTokenCount) === "number" ? usageMeta.candidatesTokenCount : 0;
+  const totalTokens = typeof (usageMeta == null ? void 0 : usageMeta.totalTokenCount) === "number" ? usageMeta.totalTokenCount : inputTokens + outputTokens;
+  return {
+    success: true,
+    text,
+    model,
+    usage: { inputTokens, outputTokens, totalTokens }
+  };
+}
+function getGeminiGenerateUrl(model, apiKey, baseUrl = "https://generativelanguage.googleapis.com/v1beta") {
+  return `${baseUrl}/models/${model}:generateContent?key=${apiKey}`;
+}
+
+// node_modules/obsidian-llm-shared/dist/providers/grok.js
+function buildGrokBody(messages, model, opts = {}) {
+  var _a;
+  const reasoning = isReasoningModel(model);
+  const tokens = getEffectiveMaxTokens(model, (_a = opts.maxTokens) != null ? _a : 4096);
+  const body = {
+    model,
+    messages: messages.map((m) => ({ role: m.role, content: m.content }))
+  };
+  if (reasoning) {
+    body.max_completion_tokens = tokens;
+  } else {
+    body.max_tokens = tokens;
+    if (opts.temperature !== void 0) {
+      body.temperature = opts.temperature;
+    }
+  }
+  return body;
+}
+function parseGrokResponse(json) {
+  return parseOpenAIResponse(json);
+}
+
 // src/core/application/services/event-emitter.ts
 var EventEmitter = class {
   constructor() {
@@ -298,480 +817,29 @@ var BudgetExceededError = class extends AIError {
   }
 };
 
-// node_modules/obsidian-llm-shared/dist/model-configs.js
-var AI_PROVIDERS = {
-  claude: {
-    id: "claude",
-    name: "Claude",
-    displayName: "Anthropic Claude",
-    endpoint: "https://api.anthropic.com/v1",
-    defaultModel: "claude-haiku-4-5",
-    apiKeyPrefix: "sk-ant-"
-  },
-  openai: {
-    id: "openai",
-    name: "OpenAI",
-    displayName: "OpenAI GPT",
-    endpoint: "https://api.openai.com/v1",
-    defaultModel: "gpt-5.4-nano",
-    apiKeyPrefix: "sk-"
-  },
-  gemini: {
-    id: "gemini",
-    name: "Gemini",
-    displayName: "Google Gemini",
-    endpoint: "https://generativelanguage.googleapis.com/v1beta",
-    defaultModel: "gemini-2.5-flash",
-    apiKeyPrefix: "AIza"
-  },
-  grok: {
-    id: "grok",
-    name: "Grok",
-    displayName: "xAI Grok",
-    endpoint: "https://api.x.ai/v1",
-    defaultModel: "grok-4-1-fast"
-  }
-};
-var MODEL_CONFIGS = {
-  // ── OpenAI ── GPT-5.4 series: reasoning via `reasoning.effort` param
-  // Uses max_completion_tokens. Temperature forbidden when reasoning.effort != 'none'.
-  // >272K input tokens: 2x input, 1.5x output pricing.
-  "gpt-5.4": {
-    id: "gpt-5.4",
-    displayName: "GPT-5.4",
-    provider: "openai",
-    contextWindow: 105e4,
-    defaultCompletionTokens: 16384,
-    isReasoning: true,
-    inputCostPer1M: 2.5,
-    outputCostPer1M: 15
-  },
-  "gpt-5.4-pro": {
-    id: "gpt-5.4-pro",
-    displayName: "GPT-5.4 Pro",
-    provider: "openai",
-    contextWindow: 105e4,
-    defaultCompletionTokens: 16384,
-    isReasoning: true,
-    inputCostPer1M: 5,
-    outputCostPer1M: 30
-  },
-  "gpt-5.4-mini": {
-    id: "gpt-5.4-mini",
-    displayName: "GPT-5.4 Mini",
-    provider: "openai",
-    contextWindow: 4e5,
-    defaultCompletionTokens: 8192,
-    isReasoning: true,
-    inputCostPer1M: 0.75,
-    outputCostPer1M: 4.5
-  },
-  "gpt-5.4-nano": {
-    id: "gpt-5.4-nano",
-    displayName: "GPT-5.4 Nano",
-    provider: "openai",
-    contextWindow: 4e5,
-    defaultCompletionTokens: 8192,
-    isReasoning: true,
-    inputCostPer1M: 0.2,
-    outputCostPer1M: 1.25
-  },
-  // ── Gemini ── thinking via `thinking_level` (LOW/MEDIUM/HIGH), separate budget
-  // ⚠️ Default maxOutputTokens is only 8,192 — set explicitly for full 65K!
-  // >200K input tokens on 3.1-pro: 2x input, 1.5x output pricing.
-  "gemini-3.1-pro-preview": {
-    id: "gemini-3.1-pro-preview",
-    displayName: "Gemini 3.1 Pro",
-    provider: "gemini",
-    contextWindow: 1048576,
-    defaultCompletionTokens: 4096,
-    isReasoning: true,
-    inputCostPer1M: 2,
-    outputCostPer1M: 12
-  },
-  "gemini-3.1-flash-lite-preview": {
-    id: "gemini-3.1-flash-lite-preview",
-    displayName: "Gemini 3.1 Flash-Lite",
-    provider: "gemini",
-    contextWindow: 1e6,
-    defaultCompletionTokens: 4096,
-    isReasoning: true,
-    inputCostPer1M: 0.25,
-    outputCostPer1M: 1.5
-  },
-  "gemini-2.5-pro": {
-    id: "gemini-2.5-pro",
-    displayName: "Gemini 2.5 Pro",
-    provider: "gemini",
-    contextWindow: 1048576,
-    defaultCompletionTokens: 4096,
-    isReasoning: true,
-    inputCostPer1M: 1.25,
-    outputCostPer1M: 10
-  },
-  "gemini-2.5-flash": {
-    id: "gemini-2.5-flash",
-    displayName: "Gemini 2.5 Flash",
-    provider: "gemini",
-    contextWindow: 1048576,
-    defaultCompletionTokens: 4096,
-    isReasoning: true,
-    inputCostPer1M: 0.3,
-    outputCostPer1M: 2.5
-  },
-  "gemini-2.0-flash": {
-    id: "gemini-2.0-flash",
-    displayName: "Gemini 2.0 Flash (deprecated)",
-    provider: "gemini",
-    contextWindow: 1048576,
-    defaultCompletionTokens: 2048,
-    isReasoning: false,
-    inputCostPer1M: 0.1,
-    outputCostPer1M: 0.4,
-    deprecated: true
-    // Retirement: 2026-06-01
-  },
-  // ── Anthropic ── extended thinking opt-in via `thinking` parameter
-  // All models now support thinking. Opus 4.6: adaptive. Sonnet/Haiku: enabled.
-  "claude-opus-4-6": {
-    id: "claude-opus-4-6",
-    displayName: "Claude Opus 4.6",
-    provider: "claude",
-    contextWindow: 1e6,
-    defaultCompletionTokens: 2048,
-    isReasoning: false,
-    inputCostPer1M: 5,
-    outputCostPer1M: 25,
-    thinkingMode: "adaptive"
-  },
-  "claude-sonnet-4-6": {
-    id: "claude-sonnet-4-6",
-    displayName: "Claude Sonnet 4.6",
-    provider: "claude",
-    contextWindow: 1e6,
-    defaultCompletionTokens: 2048,
-    isReasoning: false,
-    inputCostPer1M: 3,
-    outputCostPer1M: 15,
-    thinkingMode: "enabled",
-    thinkingBudget: 1024
-  },
-  "claude-haiku-4-5": {
-    id: "claude-haiku-4-5",
-    displayName: "Claude Haiku 4.5",
-    provider: "claude",
-    contextWindow: 1e6,
-    defaultCompletionTokens: 500,
-    isReasoning: false,
-    inputCostPer1M: 1,
-    outputCostPer1M: 5,
-    thinkingMode: "enabled",
-    thinkingBudget: 1024
-  },
-  // Date-pinned alias (backwards compatibility)
-  "claude-haiku-4-5-20251001": {
-    id: "claude-haiku-4-5-20251001",
-    displayName: "Claude Haiku 4.5",
-    provider: "claude",
-    contextWindow: 1e6,
-    defaultCompletionTokens: 500,
-    isReasoning: false,
-    inputCostPer1M: 1,
-    outputCostPer1M: 5,
-    thinkingMode: "enabled",
-    thinkingBudget: 1024
-  },
-  // ── Grok (xAI) ──
-  // grok-4: premium, always-on reasoning. Do NOT send reasoning_effort (causes error).
-  // grok-4-1-fast: budget, 2M context (industry largest).
-  "grok-4": {
-    id: "grok-4",
-    displayName: "Grok 4",
-    provider: "grok",
-    contextWindow: 256e3,
-    defaultCompletionTokens: 4096,
-    isReasoning: true,
-    inputCostPer1M: 3,
-    outputCostPer1M: 15
-  },
-  "grok-4-1-fast": {
-    id: "grok-4-1-fast",
-    displayName: "Grok 4.1 Fast",
-    provider: "grok",
-    contextWindow: 2e6,
-    defaultCompletionTokens: 4096,
-    isReasoning: true,
-    inputCostPer1M: 0.2,
-    outputCostPer1M: 0.5
-  },
-  "grok-4-1-fast-non-reasoning": {
-    id: "grok-4-1-fast-non-reasoning",
-    displayName: "Grok 4.1 Fast (Non-Reasoning)",
-    provider: "grok",
-    contextWindow: 2e6,
-    defaultCompletionTokens: 4096,
-    isReasoning: false,
-    inputCostPer1M: 0.2,
-    outputCostPer1M: 0.5
-  }
-};
-function getModelConfig(modelId) {
-  return MODEL_CONFIGS[modelId];
-}
-function isReasoningModel(modelId) {
-  const config = getModelConfig(modelId);
-  if (config)
-    return config.isReasoning;
-  return modelId.startsWith("gpt-5") || modelId.startsWith("o1") || modelId.startsWith("o3") || modelId.startsWith("o4");
-}
-function getEffectiveMaxTokens(modelId, requestedTokens) {
-  const config = getModelConfig(modelId);
-  if (!config) {
-    if (isReasoningModel(modelId)) {
-      return Math.max(requestedTokens, 8192);
-    }
-    return requestedTokens;
-  }
-  if (config.thinkingMode) {
-    const minRequired = config.thinkingBudget ? config.thinkingBudget + 1 : config.defaultCompletionTokens;
-    return Math.max(requestedTokens, minRequired);
-  }
-  if (!config.isReasoning)
-    return requestedTokens;
-  return Math.max(requestedTokens, config.defaultCompletionTokens);
-}
-function getThinkingConfig(modelId) {
-  var _a;
-  const config = getModelConfig(modelId);
-  if (!(config == null ? void 0 : config.thinkingMode))
-    return void 0;
-  if (config.thinkingMode === "adaptive") {
-    return { type: "adaptive" };
-  }
-  return { type: "enabled", budget_tokens: (_a = config.thinkingBudget) != null ? _a : 1024 };
-}
-function calculateCost(modelId, inputTokens, outputTokens) {
-  const config = getModelConfig(modelId);
-  if (!config)
-    return 0;
-  return inputTokens / 1e6 * config.inputCostPer1M + outputTokens / 1e6 * config.outputCostPer1M;
-}
-
-// node_modules/obsidian-llm-shared/dist/providers/openai.js
-function buildOpenAIBody(messages, model, opts = {}) {
-  var _a, _b;
-  const reasoning = isReasoningModel(model);
-  const tokens = getEffectiveMaxTokens(model, (_a = opts.maxTokens) != null ? _a : 4096);
-  const isGPT54 = model.startsWith("gpt-5.4");
-  const body = {
-    model,
-    messages: messages.map((m) => ({ role: m.role, content: m.content }))
-  };
-  if (isGPT54) {
-    body.max_completion_tokens = tokens;
-    const effort = (_b = opts.reasoningEffort) != null ? _b : "none";
-    if (effort !== "none") {
-      body.reasoning = { effort };
-    }
-    if (effort === "none" && opts.temperature !== void 0) {
-      body.temperature = opts.temperature;
-    }
-  } else if (reasoning) {
-    body.max_completion_tokens = tokens;
-  } else {
-    body.max_tokens = tokens;
-    if (opts.temperature !== void 0) {
-      body.temperature = opts.temperature;
-    }
-  }
-  return body;
-}
-function parseOpenAIResponse(json) {
-  var _a;
-  const fail = (error) => ({
-    success: false,
-    text: "",
-    model: "",
-    usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
-    error
-  });
-  if (!json || typeof json !== "object") {
-    return fail("Invalid response: not an object");
-  }
-  const data = json;
-  if (data.error) {
-    const err = data.error;
-    return fail(typeof err.message === "string" ? err.message : "API error");
-  }
-  const choices = data.choices;
-  const message = (_a = choices == null ? void 0 : choices[0]) == null ? void 0 : _a.message;
-  const text = typeof (message == null ? void 0 : message.content) === "string" ? message.content : "";
-  const model = typeof data.model === "string" ? data.model : "";
-  const usage = data.usage;
-  const inputTokens = typeof (usage == null ? void 0 : usage.prompt_tokens) === "number" ? usage.prompt_tokens : 0;
-  const outputTokens = typeof (usage == null ? void 0 : usage.completion_tokens) === "number" ? usage.completion_tokens : 0;
-  const totalTokens = typeof (usage == null ? void 0 : usage.total_tokens) === "number" ? usage.total_tokens : inputTokens + outputTokens;
-  return {
-    success: true,
-    text,
-    model,
-    usage: { inputTokens, outputTokens, totalTokens }
-  };
-}
-
-// node_modules/obsidian-llm-shared/dist/providers/anthropic.js
-function buildAnthropicBody(messages, model, opts = {}) {
-  var _a;
-  const tokens = getEffectiveMaxTokens(model, (_a = opts.maxTokens) != null ? _a : 4096);
-  const thinkingCfg = getThinkingConfig(model);
-  const systemMessages = messages.filter((m) => m.role === "system");
-  const nonSystemMessages = messages.filter((m) => m.role !== "system");
-  const body = {
-    model,
-    max_tokens: tokens,
-    messages: nonSystemMessages.map((m) => ({ role: m.role, content: m.content }))
-  };
-  if (systemMessages.length > 0) {
-    body.system = systemMessages.map((m) => m.content).join("\n\n");
-  }
-  if (thinkingCfg) {
-    body.thinking = thinkingCfg;
-  } else if (opts.temperature !== void 0) {
-    body.temperature = opts.temperature;
-  }
-  return body;
-}
-function parseAnthropicResponse(json) {
-  var _a;
-  const fail = (error) => ({
-    success: false,
-    text: "",
-    model: "",
-    usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
-    error
-  });
-  if (!json || typeof json !== "object") {
-    return fail("Invalid response: not an object");
-  }
-  const data = json;
-  if (data.type === "error" && data.error) {
-    const err = data.error;
-    return fail(typeof err.message === "string" ? err.message : "API error");
-  }
-  const content = data.content;
-  const text = (_a = content == null ? void 0 : content.filter((block) => block.type === "text").map((block) => typeof block.text === "string" ? block.text : "").join("")) != null ? _a : "";
-  const model = typeof data.model === "string" ? data.model : "";
-  const usage = data.usage;
-  const inputTokens = typeof (usage == null ? void 0 : usage.input_tokens) === "number" ? usage.input_tokens : 0;
-  const outputTokens = typeof (usage == null ? void 0 : usage.output_tokens) === "number" ? usage.output_tokens : 0;
-  return {
-    success: true,
-    text,
-    model,
-    usage: { inputTokens, outputTokens, totalTokens: inputTokens + outputTokens }
-  };
-}
-
-// node_modules/obsidian-llm-shared/dist/providers/gemini.js
-function buildGeminiBody(messages, model, opts = {}) {
-  var _a, _b;
-  const tokens = getEffectiveMaxTokens(model, (_a = opts.maxTokens) != null ? _a : 4096);
-  const systemMessages = messages.filter((m) => m.role === "system");
-  const nonSystemMessages = messages.filter((m) => m.role !== "system");
-  const contents = nonSystemMessages.map((m) => ({
-    role: m.role === "assistant" ? "model" : "user",
-    parts: [{ text: m.content }]
-  }));
-  const body = {
-    contents,
-    generationConfig: {
-      maxOutputTokens: tokens,
-      temperature: (_b = opts.temperature) != null ? _b : 0.3
-    }
-  };
-  if (systemMessages.length > 0) {
-    body.systemInstruction = {
-      parts: [{ text: systemMessages.map((m) => m.content).join("\n\n") }]
-    };
-  }
-  return body;
-}
-function parseGeminiResponse(json) {
-  var _a, _b;
-  const fail = (error) => ({
-    success: false,
-    text: "",
-    model: "",
-    usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
-    error
-  });
-  if (!json || typeof json !== "object") {
-    return fail("Invalid response: not an object");
-  }
-  const data = json;
-  if (data.error) {
-    const err = data.error;
-    return fail(typeof err.message === "string" ? err.message : "API error");
-  }
-  const candidates = data.candidates;
-  const content = (_a = candidates == null ? void 0 : candidates[0]) == null ? void 0 : _a.content;
-  const parts = content == null ? void 0 : content.parts;
-  const text = typeof ((_b = parts == null ? void 0 : parts[0]) == null ? void 0 : _b.text) === "string" ? parts[0].text : "";
-  const model = typeof data.modelVersion === "string" ? data.modelVersion : "";
-  const usageMeta = data.usageMetadata;
-  const inputTokens = typeof (usageMeta == null ? void 0 : usageMeta.promptTokenCount) === "number" ? usageMeta.promptTokenCount : 0;
-  const outputTokens = typeof (usageMeta == null ? void 0 : usageMeta.candidatesTokenCount) === "number" ? usageMeta.candidatesTokenCount : 0;
-  const totalTokens = typeof (usageMeta == null ? void 0 : usageMeta.totalTokenCount) === "number" ? usageMeta.totalTokenCount : inputTokens + outputTokens;
-  return {
-    success: true,
-    text,
-    model,
-    usage: { inputTokens, outputTokens, totalTokens }
-  };
-}
-function getGeminiGenerateUrl(model, apiKey, baseUrl = "https://generativelanguage.googleapis.com/v1beta") {
-  return `${baseUrl}/models/${model}:generateContent?key=${apiKey}`;
-}
-
-// node_modules/obsidian-llm-shared/dist/providers/grok.js
-function buildGrokBody(messages, model, opts = {}) {
-  var _a;
-  const reasoning = isReasoningModel(model);
-  const tokens = getEffectiveMaxTokens(model, (_a = opts.maxTokens) != null ? _a : 4096);
-  const body = {
-    model,
-    messages: messages.map((m) => ({ role: m.role, content: m.content }))
-  };
-  if (reasoning) {
-    body.max_completion_tokens = tokens;
-  } else {
-    body.max_tokens = tokens;
-    if (opts.temperature !== void 0) {
-      body.temperature = opts.temperature;
-    }
-  }
-  return body;
-}
-function parseGrokResponse(json) {
-  return parseOpenAIResponse(json);
-}
-
 // src/core/domain/constants/model-configs.ts
 var TIER_MAP = {
   // Claude
+  "claude-opus-4-7": "premium",
   "claude-opus-4-6": "premium",
   "claude-sonnet-4-6": "standard",
   "claude-haiku-4-5": "economy",
   // OpenAI
+  "gpt-5.5": "premium",
+  "gpt-5.5-pro": "premium",
   "gpt-5.4": "premium",
+  "gpt-5.4-pro": "premium",
   "gpt-5.4-mini": "standard",
   "gpt-5.4-nano": "economy",
   // Gemini
   "gemini-3.1-pro-preview": "premium",
   "gemini-3.1-flash-lite-preview": "economy",
+  "gemini-2.5-pro": "premium",
   "gemini-2.5-flash": "standard",
   "gemini-2.0-flash": "economy",
   // Grok
+  "grok-4.3": "standard",
+  "grok-4": "premium",
   "grok-4-1-fast": "standard",
   "grok-4-1-fast-non-reasoning": "economy"
 };
@@ -802,7 +870,7 @@ var AI_PROVIDERS2 = AI_PROVIDERS;
 var FEATURE_DEFAULT_MODELS = {
   "content-analysis": {
     claude: "claude-haiku-4-5",
-    gemini: "gemini-2.0-flash",
+    gemini: "gemini-3.1-flash-lite-preview",
     openai: "gpt-5.4-nano",
     grok: "grok-4-1-fast-non-reasoning"
   },
@@ -2206,6 +2274,9 @@ var AnalysisView = class extends import_obsidian4.ItemView {
     this.viewingTopics = false;
     this.render();
   }
+  getCurrentResult() {
+    return this.currentResult;
+  }
   showTopicSuggestions(topics) {
     this.hideLoadingOverlay();
     this.suggestedTopics = topics;
@@ -2668,7 +2739,7 @@ var NoteTopicFinderPlugin = class extends import_obsidian5.Plugin {
       name: "Suggest permanent note topics from analysis",
       callback: () => {
         if (this.analysisView) {
-          const currentResult = this.analysisView.currentResult;
+          const currentResult = this.analysisView.getCurrentResult();
           if (currentResult) {
             this.suggestNoteTopics(currentResult);
           } else {
@@ -2833,6 +2904,26 @@ var NoteTopicFinderPlugin = class extends import_obsidian5.Plugin {
   }
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    this.migrateDeprecatedModels();
+  }
+  migrateDeprecatedModels() {
+    var _a;
+    const providers = ["claude", "openai", "gemini", "grok"];
+    let migrated = false;
+    for (const provider of providers) {
+      const saved = this.settings.ai.models[provider];
+      if (saved && isDeprecatedModel(saved)) {
+        const fallback = (_a = getProviderConfig(provider)) == null ? void 0 : _a.defaultModel;
+        if (fallback) {
+          console.warn(`[note-topic-finder] Migrated deprecated model ${saved} \u2192 ${fallback}`);
+          this.settings.ai.models[provider] = fallback;
+          migrated = true;
+        }
+      }
+    }
+    if (migrated) {
+      void this.saveData(this.settings);
+    }
   }
   async saveSettings() {
     await this.saveData(this.settings);

@@ -43,19 +43,26 @@ export interface ModelConfig extends SharedModelConfig {
 
 const TIER_MAP: Record<string, ModelTier> = {
   // Claude
+  'claude-opus-4-7':           'premium',
   'claude-opus-4-6':           'premium',
   'claude-sonnet-4-6':         'standard',
-  'claude-haiku-4-5': 'economy',
+  'claude-haiku-4-5':          'economy',
   // OpenAI
+  'gpt-5.5':                   'premium',
+  'gpt-5.5-pro':               'premium',
   'gpt-5.4':                   'premium',
-  'gpt-5.4-mini':                'standard',
-  'gpt-5.4-nano':                'economy',
+  'gpt-5.4-pro':               'premium',
+  'gpt-5.4-mini':              'standard',
+  'gpt-5.4-nano':              'economy',
   // Gemini
   'gemini-3.1-pro-preview':         'premium',
   'gemini-3.1-flash-lite-preview':  'economy',
+  'gemini-2.5-pro':                 'premium',
   'gemini-2.5-flash':               'standard',
   'gemini-2.0-flash':               'economy',
   // Grok
+  'grok-4.3':                       'standard',
+  'grok-4':                         'premium',
   'grok-4-1-fast':                  'standard',
   'grok-4-1-fast-non-reasoning':    'economy',
 };
@@ -103,7 +110,7 @@ export const AI_PROVIDERS: Record<AIProviderType, AIProviderConfig> =
 export const FEATURE_DEFAULT_MODELS: Record<FeatureType, Record<AIProviderType, string>> = {
   'content-analysis': {
     claude: 'claude-haiku-4-5',
-    gemini: 'gemini-2.0-flash',
+    gemini: 'gemini-3.1-flash-lite-preview',
     openai: 'gpt-5.4-nano',
     grok: 'grok-4-1-fast-non-reasoning',
   },
