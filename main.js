@@ -49,7 +49,7 @@ var AI_PROVIDERS = {
     name: "Gemini",
     displayName: "Google Gemini",
     endpoint: "https://generativelanguage.googleapis.com/v1beta",
-    defaultModel: "gemini-3.1-flash-lite-preview",
+    defaultModel: "gemini-3.1-flash-lite",
     apiKeyPrefix: "AIza"
   },
   grok: {
@@ -138,8 +138,8 @@ var MODEL_CONFIGS = {
     inputCostPer1M: 2,
     outputCostPer1M: 12
   },
-  "gemini-3.1-flash-lite-preview": {
-    id: "gemini-3.1-flash-lite-preview",
+  "gemini-3.1-flash-lite": {
+    id: "gemini-3.1-flash-lite",
     displayName: "Gemini 3.1 Flash-Lite",
     provider: "gemini",
     contextWindow: 1e6,
@@ -168,18 +168,10 @@ var MODEL_CONFIGS = {
     inputCostPer1M: 0.3,
     outputCostPer1M: 2.5
   },
-  "gemini-2.0-flash": {
-    id: "gemini-2.0-flash",
-    displayName: "Gemini 2.0 Flash (retiring 2026-06-01)",
-    provider: "gemini",
-    contextWindow: 1048576,
-    defaultCompletionTokens: 2048,
-    isReasoning: false,
-    inputCostPer1M: 0.1,
-    outputCostPer1M: 0.4,
-    deprecated: true
-    // Retirement: 2026-06-01 — to be fully removed in v1.4.0
-  },
+  // gemini-2.0-flash removed in v1.4.0 (upstream retirement 2026-06-01).
+  // gemini-3.1-flash-lite-preview removed in v1.4.0 (upstream shutdown 2026-05-25;
+  //   GA model gemini-3.1-flash-lite replaces it 1:1 — same pricing, same context).
+  // Both ids are caught by isDeprecatedModel(strict=true default) → migration to defaultModel.
   // ── Anthropic ── extended thinking opt-in via `thinking` parameter
   // Opus 4.7 (Apr 16 2026): Adaptive ONLY (Extended unsupported, breaking vs 4.6).
   // Opus 4.6 (Feb 5 2026): Adaptive recommended; manual ('enabled' + budget_tokens) deprecated.
@@ -303,9 +295,11 @@ function getProviderConfig(provider) {
   const resolved = resolveProvider(provider);
   return AI_PROVIDERS[resolved];
 }
-function isDeprecatedModel(modelId) {
-  var _a;
-  return ((_a = getModelConfig(modelId)) == null ? void 0 : _a.deprecated) === true;
+function isDeprecatedModel(modelId, strict = true) {
+  const config = getModelConfig(modelId);
+  if (!config)
+    return strict;
+  return config.deprecated === true;
 }
 function isReasoningModel(modelId) {
   const config = getModelConfig(modelId);
@@ -2904,9 +2898,9 @@ var NoteTopicFinderPlugin = class extends import_obsidian5.Plugin {
   }
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-    this.migrateDeprecatedModels();
+    await this.migrateDeprecatedModels();
   }
-  migrateDeprecatedModels() {
+  async migrateDeprecatedModels() {
     var _a;
     const providers = ["claude", "openai", "gemini", "grok"];
     let migrated = false;
@@ -2922,7 +2916,7 @@ var NoteTopicFinderPlugin = class extends import_obsidian5.Plugin {
       }
     }
     if (migrated) {
-      void this.saveData(this.settings);
+      await this.saveData(this.settings);
     }
   }
   async saveSettings() {

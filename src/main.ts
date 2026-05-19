@@ -351,10 +351,10 @@ export default class NoteTopicFinderPlugin extends Plugin {
 
   async loadSettings(): Promise<void> {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-    this.migrateDeprecatedModels();
+    await this.migrateDeprecatedModels();
   }
 
-  private migrateDeprecatedModels(): void {
+  private async migrateDeprecatedModels(): Promise<void> {
     const providers: AIProviderType[] = ['claude', 'openai', 'gemini', 'grok'];
     let migrated = false;
     for (const provider of providers) {
@@ -369,7 +369,7 @@ export default class NoteTopicFinderPlugin extends Plugin {
       }
     }
     if (migrated) {
-      void this.saveData(this.settings);
+      await this.saveData(this.settings);
     }
   }
 
