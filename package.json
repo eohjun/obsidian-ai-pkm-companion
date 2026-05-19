@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-note-topic-finder",
-	"version": "0.4.32",
+	"version": "0.4.33",
 	"description": "Analyze content and discover permanent note topics from URLs, text, and vault notes",
 	"main": "main.js",
 	"scripts": {
@@ -25,6 +25,6 @@
 		"typescript": "^6.0.2"
 	},
 	"dependencies": {
-		"obsidian-llm-shared": "github:eohjun/obsidian-llm-shared#v1.4.0"
+		"obsidian-llm-shared": "github:eohjun/obsidian-llm-shared#v1.4.1"
 	}
 }
