@@ -480,7 +480,7 @@ function buildGeminiBody(messages, model, opts = {}) {
   return body;
 }
 function parseGeminiResponse(json) {
-  var _a, _b;
+  var _a, _b, _c;
   const fail = (error) => ({
     success: false,
     text: "",
@@ -497,9 +497,30 @@ function parseGeminiResponse(json) {
     return fail(typeof err.message === "string" ? err.message : "API error");
   }
   const candidates = data.candidates;
-  const content = (_a = candidates == null ? void 0 : candidates[0]) == null ? void 0 : _a.content;
+  if (!candidates || candidates.length === 0) {
+    const fb = data.promptFeedback;
+    if (fb && typeof fb.blockReason === "string") {
+      return fail(`Prompt blocked by Gemini: ${fb.blockReason}`);
+    }
+    return fail("No candidates in Gemini response");
+  }
+  const finishReason = (_a = candidates[0]) == null ? void 0 : _a.finishReason;
+  const blockingFinishReasons = /* @__PURE__ */ new Set([
+    "SAFETY",
+    "RECITATION",
+    "BLOCKLIST",
+    "PROHIBITED_CONTENT",
+    "SPII",
+    "OTHER",
+    "LANGUAGE",
+    "MALFORMED_FUNCTION_CALL"
+  ]);
+  if (finishReason && blockingFinishReasons.has(finishReason)) {
+    return fail(`Gemini stopped generation: ${finishReason}`);
+  }
+  const content = (_b = candidates[0]) == null ? void 0 : _b.content;
   const parts = content == null ? void 0 : content.parts;
-  const text = typeof ((_b = parts == null ? void 0 : parts[0]) == null ? void 0 : _b.text) === "string" ? parts[0].text : "";
+  const text = typeof ((_c = parts == null ? void 0 : parts[0]) == null ? void 0 : _c.text) === "string" ? parts[0].text : "";
   const model = typeof data.modelVersion === "string" ? data.modelVersion : "";
   const usageMeta = data.usageMetadata;
   const inputTokens = typeof (usageMeta == null ? void 0 : usageMeta.promptTokenCount) === "number" ? usageMeta.promptTokenCount : 0;
