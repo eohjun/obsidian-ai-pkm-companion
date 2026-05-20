@@ -818,16 +818,16 @@ var JobQueue = class {
 var AIError = class extends Error {
   constructor(message, code, retryable = false) {
     super(message);
-    this.code = code;
-    this.retryable = retryable;
+    __publicField(this, "code", code);
+    __publicField(this, "retryable", retryable);
     this.name = "AIError";
   }
 };
 var BudgetExceededError = class extends AIError {
   constructor(message = "Budget limit exceeded.", currentSpend, budgetLimit) {
     super(message, "BUDGET_EXCEEDED", false);
-    this.currentSpend = currentSpend;
-    this.budgetLimit = budgetLimit;
+    __publicField(this, "currentSpend", currentSpend);
+    __publicField(this, "budgetLimit", budgetLimit);
     this.name = "BudgetExceededError";
   }
 };
